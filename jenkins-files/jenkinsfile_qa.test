@@ -1,0 +1,143 @@
+pipeline {
+    agent {
+        label 'java-microservices-test'  // Use the label defined earlier for the node
+    }
+    environment {
+        IMAGE_NAME = "cctns-autosave-producer"  // Base name for the image
+        BUILD_TAG = "${BUILD_NUMBER}"  // Jenkins build number to create a unique tag
+        FULL_IMAGE_NAME = "${IMAGE_NAME}:${BUILD_TAG}"  // Full image name with build tag
+        NEXUS_REPO_URL = "10.212.113.11:5000"  // Nexus repository URL
+        NEXUS_IMAGE_NAME = "${NEXUS_REPO_URL}/${FULL_IMAGE_NAME}"  // Full image name including Nexus URL
+        MAVEN_HOME = '/opt/apache-maven-3.9.9'
+        PATH = "$MAVEN_HOME/bin:$PATH"
+        SONARQUBE_URL = "http://10.212.107.112:9000"
+        SONAR_PROJECT_KEY = "cctns-autosave-producer"
+        sonarReportUrl = "${SONARQUBE_URL}/dashboard?id=${SONAR_PROJECT_KEY}"
+        MATTERMOST_WEBHOOK_URL = "http://10.212.107.106/hooks/gw3ofiknjbdp7d8f4948hza5hr"
+        NEXUS_USERNAME = "admin"
+        NEXUS_PASSWORD = "NcrbDev@12345\$"
+    }
+    stages {
+        stage('Checkout') {
+            steps {
+                // Pull the code from the repository using the specified branch and credentials
+                git branch: 'main',
+                    credentialsId: 'cctns-ncrb-user-devops',
+                    url: 'http://10.212.107.97:7000/development/microservices-code/cctns-autosave-producer.git'
+            }
+        }
+
+        stage('Build') {
+            steps {
+                // Run the Maven clean install command to build the project
+                sh 'mvn clean install'
+            }
+        }
+
+        stage('Code Analysis') {
+            environment {
+                scannerHome = tool 'Sonar'
+            }
+            steps {
+                script {
+                    withSonarQubeEnv('Sonar') {
+                        sh "${scannerHome}/bin/sonar-scanner \
+                            -Dsonar.projectKey=cctns-autosave-producer \
+                            -Dsonar.projectName=cctns-autosave-producer \
+                            -Dsonar.projectVersion=1.0.0 \
+                            -Dsonar.sources=. \
+                            -Dsonar.java.binaries=target/classes"
+                    }
+                }
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    // Build Docker image with the unique Jenkins build tag and Nexus repo URL
+                    sh "docker build -t ${NEXUS_IMAGE_NAME} ."
+                }
+            }
+        }
+
+        stage('Login to Nexus Docker Registry') {
+            steps {
+                script {
+                    // Login to Nexus Docker registry
+                    sh """
+                    echo ${NEXUS_PASSWORD} | docker login ${NEXUS_REPO_URL} -u ${NEXUS_USERNAME} --password-stdin
+                    """
+                }
+            }
+        }
+
+        stage('Push Docker Image to Nexus') {
+            steps {
+                script {
+                    // Push the built Docker image to Nexus repository
+                    sh "docker push ${NEXUS_IMAGE_NAME}"
+                }
+            }
+        }
+
+        stage('Deploy to Kubernetes') {
+            steps {
+                script {
+                    // Apply Kubernetes deployment YAML file
+                    sh """
+                    kubectl delete pods -l app=cctns-autosave-producer --ignore-not-found=true
+                    sed -i 's|\$NEXUS_IMAGE_NAME|${NEXUS_IMAGE_NAME}|g' kubernetes.yml
+                    /usr/local/bin/kubectl apply -f kubernetes.yml -n cctns-dev
+                    """
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            script {
+                // Send a success notification to Mattermost (channel is omitted)
+                mattermostSend(
+                    webhookURL: MATTERMOST_WEBHOOK_URL,
+                    message: "Build ${env.NEXUS_IMAGE_NAME}:${env.BUILD_TAG} succeeded!",
+                    color: 'good'
+                )
+            }
+        }
+
+        failure {
+            script {
+                // Send a failure notification to Mattermost (channel is omitted)
+                mattermostSend(
+                    webhookURL: MATTERMOST_WEBHOOK_URL,
+                    message: "Build ${env.NEXUS_IMAGE_NAME}:${env.BUILD_TAG} failed. Check the logs.",
+                    color: 'danger'
+                )
+            }
+        }
+
+        unstable {
+            script {
+                // Send a notification for an unstable build (channel is omitted)
+                mattermostSend(
+                    webhookURL: MATTERMOST_WEBHOOK_URL,
+                    message: "Build ${env.NEXUS_IMAGE_NAME}:${env.BUILD_TAG} is unstable. Review the build logs.",
+                    color: 'warning'
+                )
+            }
+        }
+
+        always {
+            script {
+                // Send a general notification (channel is omitted)
+                mattermostSend(
+                    webhookURL: MATTERMOST_WEBHOOK_URL,
+                    message: "Build ${env.NEXUS_IMAGE_NAME}:${env.BUILD_TAG} finished, Check the SonarQube report at: ${sonarReportUrl} ",
+                    color: 'blue'
+                )
+            }
+        }
+    }
+}

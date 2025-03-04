@@ -1,0 +1,161 @@
+pipeline {
+    agent {
+        label 'java-microservices'  // Use the label defined earlier for the node
+    }
+    environment {
+        IMAGE_NAME = "cctns-autosave-producer"  // Base name for the image
+        CONTAINER_NAME = "cctns-autosave-producer"  // Base name for the container
+        BUILD_TAG = "${BUILD_NUMBER}"  // Jenkins build number to create a unique tag
+        FULL_IMAGE_NAME = "${IMAGE_NAME}:${BUILD_TAG}"  // Full image name with build tag
+        MAVEN_HOME = '/opt/apache-maven-3.9.9'
+        PATH = "$MAVEN_HOME/bin:$PATH"
+        SONARQUBE_URL = "http://10.212.107.112:9000/"
+        SONAR_PROJECT_KEY = "cctns-autosave-producer"
+        sonarReportUrl = "${SONARQUBE_URL}/dashboard?id=${SONAR_PROJECT_KEY}"
+        MATTERMOST_WEBHOOK_URL = "http://10.212.107.106/hooks/gw3ofiknjbdp7d8f4948hza5hr"
+    }
+    stages {
+        stage('Checkout') {
+            steps {
+                // Pull the code from the repository using the specified branch and credentials
+                git branch: 'main', 
+                    credentialsId: 'cctns-ncrb-user-devops', 
+                    url: 'http://10.212.107.97:7000/development/microservices-code/cctns-autosave-producer.git'
+            }
+        }
+         stage('Build') {
+            steps {
+                // Run the Maven clean install command to build the project
+               // sh 'whoami'
+                sh 'mvn clean install'
+            }
+        }
+        stage('Code Analysis') {
+            environment {
+                scannerHome = tool 'Sonar'
+            }
+            steps {
+                script {
+                    withSonarQubeEnv('Sonar') {
+                        sh "${scannerHome}/bin/sonar-scanner \
+                            -Dsonar.projectKey=cctns-autosave-producer \
+                            -Dsonar.projectName=cctns-autosave-producer \
+                            -Dsonar.projectVersion=1.0.0 \
+                            -Dsonar.sources=. \
+                            -Dsonar.java.binaries=target/classes"
+                        
+                    }
+                }
+            }
+        }
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    // Build Docker image with the unique Jenkins build tag
+                    sh "cp -r /home/cctnscloud/apm ${WORKSPACE}/apm"
+                    sh "docker build -t ${FULL_IMAGE_NAME} ."
+                }
+            }
+        }
+        stage('Stop and Remove Old Container') {
+            steps {
+                script {
+                    // Check if the container exists before attempting to stop and remove it
+                    def containerExists = sh(script: "docker ps -a --filter name=${CONTAINER_NAME} --quiet", returnStdout: true).trim()
+                    if (containerExists) {
+                        // Stop the existing container if it's running
+                        sh "docker stop ${CONTAINER_NAME}"
+                        // Remove the old container
+                        sh "docker rm ${CONTAINER_NAME}"
+                    } else {
+                        echo "Container ${CONTAINER_NAME} does not exist. Skipping stop and remove."
+                    }
+                }
+            }
+        }
+        stage('Remove Old Image') {
+            steps {
+                script {
+                    // Calculate the previous build number (previous tag)
+                    def previousTag = "${BUILD_NUMBER.toInteger() - 1}"
+                    
+                    // Check if the previous image exists before attempting to remove it
+                    def imageExists = sh(script: "docker images --filter=reference=${IMAGE_NAME}:${previousTag} --quiet", returnStdout: true).trim()
+                    if (imageExists) {
+                        // Remove the old image using the previous build tag
+                        sh "docker rmi ${IMAGE_NAME}:${previousTag} || true"
+                    } else {
+                        echo "Image ${IMAGE_NAME}:${previousTag} does not exist. Skipping image removal."
+                    }
+                }
+            }
+        }
+        stage('Remove All Old Images Except Current Build') {
+            steps {
+                script {
+                    // List all images except the current image and remove them
+                    sh """
+                    docker images --filter=reference=${IMAGE_NAME}:* --format '{{.Repository}}:{{.Tag}}' | \
+                    grep -v ${FULL_IMAGE_NAME} | \
+                    xargs -I {} docker rmi {} || true
+                    """
+                }
+            }
+        }
+        stage('Run New Container') {
+            steps {
+                script {
+                    // Run the new container using the newly built image
+                    sh "docker run -d -v /etc/localtime:/etc/localtime -p 9084:9084 --name ${CONTAINER_NAME} ${FULL_IMAGE_NAME}"
+                }
+            }
+        }
+    }
+ 
+    post {
+        success {
+            script {
+                // Send a success notification to Mattermost (channel is omitted)
+                mattermostSend(
+                    webhookURL: MATTERMOST_WEBHOOK_URL,
+                    message: "Build ${env.FULL_IMAGE_NAME} succeeded!",
+                    color: 'good'
+                )
+            }
+        }
+
+        failure {
+            script {
+                // Send a failure notification to Mattermost (channel is omitted)
+                mattermostSend(
+                    webhookURL: MATTERMOST_WEBHOOK_URL,
+                    message: "Build ${env.FULL_IMAGE_NAME} failed. Check the logs.",
+                    color: 'danger'
+                )
+            }
+        }
+
+        unstable {
+            script {
+                // Send a notification for an unstable build (channel is omitted)
+                mattermostSend(
+                    webhookURL: MATTERMOST_WEBHOOK_URL,
+                    message: "Build ${env.BUILD_FULL_IMAGE_NAME} is unstable. Review the build logs.",
+                    color: 'warning'
+                )
+            }
+        }
+
+        always {
+            script {
+                // Send a general notification (channel is omitted)
+                mattermostSend(
+                    webhookURL: MATTERMOST_WEBHOOK_URL,
+                    message: "Build ${env.FULL_IMAGE_NAME} finished, Check the SonarQube report at: ${sonarReportUrl} ",
+                    color: 'blue'
+                )
+            }
+        }
+    }    
+        
+}
