@@ -16,7 +16,7 @@ spec:
         - name: cctns-autosave-producer
           image: "$NEXUS_IMAGE_NAME"
           ports:
-            - containerPort: 9215
+            - containerPort: 9218
 ---
 apiVersion: v1
 kind: Service
@@ -27,7 +27,7 @@ spec:
     app: cctns-autosave-producer  # Match the app label from the Deployment
   ports:
     - protocol: TCP
-      port: 9215      # Port exposed by the service
-      targetPort: 9215 # Container port to route traffic to
+      port: 9218      # Port exposed by the service
+      targetPort: 9218 # Container port to route traffic to
   type: ClusterIP  # Internal access within the cluster
 

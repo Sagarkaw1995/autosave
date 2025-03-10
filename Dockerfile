@@ -7,7 +7,7 @@ WORKDIR /app
 COPY target/*.jar /app/app.jar
 
 # Expose the port that the application will run on (if applicable)
-EXPOSE 9215
+EXPOSE 9218
 
 
 # Command to run the JAR file
