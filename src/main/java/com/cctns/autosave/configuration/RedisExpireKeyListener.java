@@ -5,12 +5,16 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.core.RedisCallback;
+import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -51,16 +55,24 @@ public class RedisExpireKeyListener  {
             String[] key = message.split(":");
             String expiredKey = key[1];
             log.info("The Key Received : {}",expiredKey);
-           Object data = redisTemplate.execute((RedisCallback<Object>)connection -> {
-                //Starting a transaction :
-                    connection.multi();
-            LinkedHashMap<String,Object> jsonData = redisTemplate.opsForValue().get(expiredKey);
-            redisTemplate.opsForStream().add(redisStreamName, Map.of("key",expiredKey,"value",jsonData));
-            redisTemplate.delete(expiredKey);
-            log.info("Extrated The Value Associated With Key : {} And Value : {}",expiredKey,jsonData);
-            connection.exec();
-            return jsonData;
-            });
+           LinkedHashMap<String,Object> data = redisTemplate.execute(new SessionCallback<LinkedHashMap<String, Object>>() {
+               @Override
+               public LinkedHashMap<String, Object> execute(RedisOperations operations) throws DataAccessException {
+
+                   operations.watch(expiredKey);
+                   LinkedHashMap<String,Object> jsonData = (LinkedHashMap<String, Object>) operations.opsForValue().get(expiredKey);
+                 operations.multi();
+                   operations.opsForStream().add(redisStreamName, Map.of("key",expiredKey,"value",jsonData));
+                   operations.delete(expiredKey);
+                   log.info("Extrated The Value Associated With Key : {} And Value : {}",expiredKey,jsonData);
+                   List<Object> result = operations.exec();
+
+                   if(result == null || result.isEmpty()){
+                       log.info("The Transaction Is Failded The Expired Key Was Changed !");
+                       return null;
+                   }
+                   return jsonData;
+            }});
 
            if(data instanceof LinkedHashMap<?,?>){
                log.info("Yes The Data is of instance of LHM : {}",data);

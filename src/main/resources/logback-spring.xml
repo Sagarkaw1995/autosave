@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+  <!-- Microservice Name -->
+  <property name="MICROSERVICE_NAME" value="cctns-autosave-producer" />
+
+  <!-- Console Appender -->
+  <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>
+        %d{yyyy-MM-dd HH:mm:ss} [%X{microservice:-${MICROSERVICE_NAME}}] %logger{36} - %M - Line:%L - %msg%n
+      </pattern>
+    </encoder>
+  </appender>
+
+  <!-- Rolling File Appender -->
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+      <file>logs/cctns-autosave-producer.log</file> <!-- Log file location -->
+      <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+        <fileNamePattern>logs/cctns-autosave-producer-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+        <maxHistory>7</maxHistory>
+        <maxFileSize>2MB</maxFileSize>
+      </rollingPolicy>
+      <encoder>
+        <pattern>
+          %d{yyyy-MM-dd HH:mm:ss} [%X{microservice:-${MICROSERVICE_NAME}}] %logger{36} - %M - Line:%L - %msg%n
+        </pattern>
+      </encoder>
+    </appender>
+
+  <!-- Root Logger -->
+  <root level="info">
+    <appender-ref ref="CONSOLE"/>
+    <appender-ref ref="FILE"/>
+  </root>
+</configuration>

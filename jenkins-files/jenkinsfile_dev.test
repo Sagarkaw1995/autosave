@@ -106,7 +106,7 @@ pipeline {
             steps {
                 script {
                     // Run the new container using the newly built image
-                    sh "docker run -d -v /etc/localtime:/etc/localtime -p 9084:9084 --name ${CONTAINER_NAME} ${FULL_IMAGE_NAME}"
+                    sh "docker run -d -v /etc/localtime:/etc/localtime -p 9215:9215 --name ${CONTAINER_NAME} ${FULL_IMAGE_NAME}"
                 }
             }
         }

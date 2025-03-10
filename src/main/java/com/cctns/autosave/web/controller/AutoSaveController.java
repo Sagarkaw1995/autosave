@@ -4,8 +4,8 @@ import com.cctns.autosave.core.domain.AutoSaveDomain;
 import com.cctns.autosave.core.usecase.AutoSaveUseCase;
 import com.cctns.autosave.web.dto.request.AutoSaveRequestDto;
 import com.cctns.autosave.web.dto.request.JsonDataDto;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import jakarta.validation.Valid;
-import org.apache.coyote.Response;
 import org.modelmapper.ModelMapper;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -26,7 +26,7 @@ public class AutoSaveController {
     }
 
     @PostMapping("/saveDraftData")
-    public ResponseEntity<?> submitAutoSave(@Valid @RequestBody AutoSaveRequestDto request) {
+    public ResponseEntity<?> submitAutoSave(@Valid @RequestBody AutoSaveRequestDto request) throws JsonProcessingException {
         return ResponseEntity.ok().body(autoSaveUseCase.submitAutoSaveData(modelMapper.map(request, AutoSaveDomain.class)));
     }
 

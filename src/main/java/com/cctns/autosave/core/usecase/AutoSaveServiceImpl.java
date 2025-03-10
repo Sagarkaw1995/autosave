@@ -1,16 +1,20 @@
 package com.cctns.autosave.core.usecase;
 
 import com.cctns.autosave.core.domain.AutoSaveDomain;
+import com.cctns.autosave.core.domain.AutoSaveRequestDto;
+import com.cctns.autosave.core.repository.SavedFormRepo;
 import com.cctns.autosave.extAdapters.S3ServiceClient;
-import com.cctns.autosave.web.dto.request.AutoSaveRequestDto;
 import com.cctns.autosave.web.dto.request.JsonDataDto;
-import com.cctns.autosave.web.dto.response.ApiResponse;
 import com.cctns.autosave.web.dto.response.AutoSaveResponseDto;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.core.*;
 import org.springframework.http.ResponseEntity;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -24,6 +28,9 @@ public class AutoSaveServiceImpl implements AutoSaveUseCase{
     private final RedisTemplate<String,LinkedHashMap<String,Object>> redisTemplate;
     private final StringRedisTemplate stringRedisTemplate;
     private final S3ServiceClient s3ServiceClient;
+    private final KafkaTemplate<String, AutoSaveRequestDto> kafkaTemplate;
+private final ObjectMapper objectMapper;
+
 
     @Value("${redis.ttl.minutes}")
     private Long timeToLive;
@@ -31,42 +38,59 @@ public class AutoSaveServiceImpl implements AutoSaveUseCase{
     @Value("${redis.buffer.time.minutes}")
    private Long bufferedTimeInSeconds;
 
-    public AutoSaveServiceImpl(RedisTemplate<String,LinkedHashMap<String,Object>> redisTemplate,StringRedisTemplate stringRedisTemplate,S3ServiceClient s3ServiceClient) {
+    public AutoSaveServiceImpl(RedisTemplate<String,LinkedHashMap<String,Object>> redisTemplate,StringRedisTemplate stringRedisTemplate,S3ServiceClient s3ServiceClient,
+                               KafkaTemplate<String, AutoSaveRequestDto> kafkaTemplate,ObjectMapper objectMapper) {
         this.redisTemplate = redisTemplate;
         this.stringRedisTemplate = stringRedisTemplate;
         this.s3ServiceClient = s3ServiceClient;
+        this.kafkaTemplate=kafkaTemplate;
+        this.objectMapper = objectMapper;
     }
 
     /**
-     * This is the service method to
+     * This is the service method to insert the data in the data base :
      * @param autoSaveData
      * @return
      */
     @Override
-    public Object submitAutoSaveData(AutoSaveDomain autoSaveData) {
+    @Transactional
+    public Object submitAutoSaveData(AutoSaveDomain autoSaveData) throws JsonProcessingException {
 
         log.info("The TTL Configured Is : {}", timeToLive);
         log.info("The Buffered Time Configured Is : {}", bufferedTimeInSeconds);
 
-        LinkedHashMap<String,Object> shadowObject = new LinkedHashMap<>();
-        shadowObject.put("","");
+        LinkedHashMap<String, Object> shadowObject = new LinkedHashMap<>();
+        shadowObject.put("", "");
 
-        // Execute the Redis operations in a transaction
-        return redisTemplate.execute((RedisCallback<Object>) connection -> {
-            connection.multi();
-            try {
-                redisTemplate.opsForValue().set("ShadowKey:" + autoSaveData.getKey(), shadowObject, Duration.ofSeconds(timeToLive));
-                redisTemplate.opsForValue().set(autoSaveData.getKey(), autoSaveData.getJsonData(), Duration.ofSeconds(timeToLive + bufferedTimeInSeconds));
-                LinkedHashMap<String, Object> data = redisTemplate.opsForValue().get(autoSaveData.getKey());
-                connection.exec();
-                return data;
-            } catch (Exception e) {
-                connection.discard();
-                log.error("Error during Redis transaction: {}", e.getMessage());
-                return null;
-            }
-        });
-    }
+        if (Boolean.TRUE.equals(redisTemplate.hasKey(autoSaveData.getSavedNum()))) {
+            log.info("The key is in redis : Hit On Redis Data :: Just Updating the TTL ");
+
+            return redisTemplate.execute(new SessionCallback<List<Boolean>>() {
+                @Override
+                public List<Boolean> execute(RedisOperations operations) throws DataAccessException {
+                    operations.multi();
+                    operations.opsForValue().set("ShadowKey:" + autoSaveData.getSavedNum(), shadowObject, Duration.ofSeconds(timeToLive));
+                    operations.opsForValue().set(autoSaveData.getSavedNum(), autoSaveData.getJsonData(), Duration.ofSeconds(timeToLive + bufferedTimeInSeconds));
+                    List<Boolean> transactionList = operations.exec();
+                    return transactionList;
+                }
+            });
+        } else {
+            log.info("The Key Is Not In Redis :: New Entry Of The Key Is Registered");
+            return redisTemplate.execute(new SessionCallback<List<Boolean>>() {
+                @Override
+                public List<Boolean> execute(RedisOperations operations) throws DataAccessException {
+                    operations.multi();
+                    operations.opsForValue().set("ShadowKey:" + autoSaveData.getSavedNum(), shadowObject, Duration.ofSeconds(timeToLive));
+                    operations.opsForValue().set(autoSaveData.getSavedNum(), autoSaveData.getJsonData(), Duration.ofSeconds(timeToLive + bufferedTimeInSeconds));
+                    List<Boolean> transactionList = operations.exec();
+                    return transactionList;
+                }
+            });
+        }
+        }
+
+
 
     @Override
     public Object getAutoSaveData(String key) {

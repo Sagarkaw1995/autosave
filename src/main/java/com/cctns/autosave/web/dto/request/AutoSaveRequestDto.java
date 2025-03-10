@@ -14,8 +14,11 @@ import java.util.LinkedHashMap;
 @AllArgsConstructor
 public class AutoSaveRequestDto {
 
-    @NotNull(message = "The Key Is Mandatory")
-    private String key;
-    @NotNull(message = "The Json Data Cannot Be NULL")
-    private LinkedHashMap<String,Object> jsonData;
+
+    @NotNull(message = "moduleName field is mandatory")
+    private String moduleName;
+    @NotNull(message = "The savedNum is mandatory")
+    private String savedNum;
+    @NotNull(message = "jsonData field is mandatory")
+    private LinkedHashMap<String, Object> jsonData;
 }
