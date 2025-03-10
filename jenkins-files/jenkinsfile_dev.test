@@ -106,7 +106,7 @@ pipeline {
             steps {
                 script {
                     // Run the new container using the newly built image
-                    sh "docker run -d -v /etc/localtime:/etc/localtime -p 9218:9218 --name ${CONTAINER_NAME} ${FULL_IMAGE_NAME}"
+                    sh "docker run --add-host=kafka:10.212.113.52 -d -v /etc/localtime:/etc/localtime -p 9218:9218 --name ${CONTAINER_NAME} ${FULL_IMAGE_NAME}"
                 }
             }
         }
