@@ -14,11 +14,12 @@ import java.util.LinkedHashMap;
 @AllArgsConstructor
 public class AutoSaveRequestDto {
 
-
     @NotNull(message = "moduleName field is mandatory")
     private String moduleName;
     @NotNull(message = "The savedNum is mandatory")
     private String savedNum;
     @NotNull(message = "jsonData field is mandatory")
     private LinkedHashMap<String, Object> jsonData;
+    @NotNull(message = "complainantDraftName is mandatory")
+    private String complainantDraftName;
 }

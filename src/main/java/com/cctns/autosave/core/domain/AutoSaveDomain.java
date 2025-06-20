@@ -14,6 +14,7 @@ import java.util.LinkedHashMap;
 @AllArgsConstructor
 public class AutoSaveDomain {
 
+    private String complainantDraftName;
     private String savedNum;
     private Integer langCd;
     private Integer psCd;

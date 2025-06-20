@@ -1,8 +1,10 @@
 package com.cctns.autosave.core.usecase;
 
+import com.cctns.autosave.constants.Constants;
 import com.cctns.autosave.core.domain.AutoSaveDomain;
 import com.cctns.autosave.core.domain.AutoSaveRequestDto;
-import com.cctns.autosave.core.repository.SavedFormRepo;
+import com.cctns.autosave.core.exception.InvalidModuleNameException;
+import com.cctns.autosave.core.repository.*;
 import com.cctns.autosave.extAdapters.S3ServiceClient;
 import com.cctns.autosave.web.dto.request.JsonDataDto;
 import com.cctns.autosave.web.dto.response.AutoSaveResponseDto;
@@ -29,8 +31,12 @@ public class AutoSaveServiceImpl implements AutoSaveUseCase{
     private final StringRedisTemplate stringRedisTemplate;
     private final S3ServiceClient s3ServiceClient;
     private final KafkaTemplate<String, AutoSaveRequestDto> kafkaTemplate;
-private final ObjectMapper objectMapper;
-
+    private final ObjectMapper objectMapper;
+    private final ComplainantSavedFormRepo complainantSavedFormRepo;
+private final FirSavedFormRepo firSavedFormRepo;
+private final MissingPersonSavedFormRepo missingPersonSavedFormRepo;
+private final NcrSavedFormRepo ncrSavedFormRepo;
+private final UifpSavedFormRepo uifpSavedFormRepo;
 
     @Value("${redis.ttl.minutes}")
     private Long timeToLive;
@@ -38,13 +44,18 @@ private final ObjectMapper objectMapper;
     @Value("${redis.buffer.time.minutes}")
    private Long bufferedTimeInSeconds;
 
-    public AutoSaveServiceImpl(RedisTemplate<String,LinkedHashMap<String,Object>> redisTemplate,StringRedisTemplate stringRedisTemplate,S3ServiceClient s3ServiceClient,
-                               KafkaTemplate<String, AutoSaveRequestDto> kafkaTemplate,ObjectMapper objectMapper) {
+    public AutoSaveServiceImpl(RedisTemplate<String,LinkedHashMap<String,Object>> redisTemplate, StringRedisTemplate stringRedisTemplate, S3ServiceClient s3ServiceClient,
+                               KafkaTemplate<String, AutoSaveRequestDto> kafkaTemplate, ObjectMapper objectMapper, ComplainantSavedFormRepo complainantSavedFormRepo, FirSavedFormRepo firSavedFormRepo, MissingPersonSavedFormRepo missingPersonSavedFormRepo, NcrSavedFormRepo ncrSavedFormRepo, UifpSavedFormRepo uifpSavedFormRepo) {
         this.redisTemplate = redisTemplate;
         this.stringRedisTemplate = stringRedisTemplate;
         this.s3ServiceClient = s3ServiceClient;
         this.kafkaTemplate=kafkaTemplate;
         this.objectMapper = objectMapper;
+        this.complainantSavedFormRepo = complainantSavedFormRepo;
+        this.firSavedFormRepo = firSavedFormRepo;
+        this.missingPersonSavedFormRepo = missingPersonSavedFormRepo;
+        this.ncrSavedFormRepo = ncrSavedFormRepo;
+        this.uifpSavedFormRepo = uifpSavedFormRepo;
     }
 
     /**
@@ -62,6 +73,37 @@ private final ObjectMapper objectMapper;
         LinkedHashMap<String, Object> shadowObject = new LinkedHashMap<>();
         shadowObject.put("", "");
 
+
+        //Json Data :
+//        LinkedHashMap<String, Object> data = autoSaveData.getJsonData();
+//        Object complainantNameObj = data.get("complainantDraftName");
+
+        String complainantNameObj = autoSaveData.getComplainantDraftName();
+
+        if (complainantNameObj instanceof String complainantName && !complainantName.trim().isEmpty()) {
+            switch (autoSaveData.getModuleName()) {
+                case Constants.COMPLAINANT -> {
+                    complainantSavedFormRepo.updateComplainantNameByComplSavedNum(complainantName, Long.parseLong(autoSaveData.getSavedNum()));
+            }
+            case Constants.FIR -> {
+                    firSavedFormRepo.updateComplainantNameByFirSavedNum(complainantName, Long.parseLong(autoSaveData.getSavedNum()));
+                }
+            case Constants.MISSING_PERSON -> {
+                    missingPersonSavedFormRepo.updateComplainantNameByMpersSavedNum(complainantName, Long.parseLong(autoSaveData.getSavedNum()));
+                }
+
+            case Constants.NCR -> {
+                    ncrSavedFormRepo.updateComplainantNameByNcrSavedNum(complainantName, Long.parseLong(autoSaveData.getSavedNum()));
+                }
+
+                case Constants.UIFP -> {
+                    uifpSavedFormRepo.updateInformantNameBySavedNum(complainantName, Long.parseLong(autoSaveData.getSavedNum()));
+                }
+                default -> throw  new InvalidModuleNameException("The Module Name Is Invalid : "+autoSaveData.getModuleName());
+        }
+    }
+
+
         if (Boolean.TRUE.equals(redisTemplate.hasKey(autoSaveData.getSavedNum()))) {
             log.info("The key is in redis : Hit On Redis Data :: Just Updating the TTL ");
 
@@ -76,6 +118,7 @@ private final ObjectMapper objectMapper;
                 }
             });
         } else {
+
             log.info("The Key Is Not In Redis :: New Entry Of The Key Is Registered");
             return redisTemplate.execute(new SessionCallback<List<Boolean>>() {
                 @Override

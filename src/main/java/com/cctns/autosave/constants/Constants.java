@@ -30,4 +30,11 @@ public class Constants {
 	public static final String COMPLETED_RECORD_STATUS="C";
 
 
+	//Constants :
+	public static final String COMPLAINANT = "COMPL";
+	public static final String MLC = "MLC";
+	public static final String MISSING_PERSON = "MISSING";
+	public static final String FIR = "FIR";
+	public static final String NCR = "NCR";
+	public static final String UIFP = "UIFP";
 }

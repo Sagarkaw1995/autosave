@@ -1,20 +1,24 @@
 package com.cctns.autosave.persistence.entities;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
 
+@Getter
+@Setter
 @Entity
-@Table(name = "t_ncr_saved", schema = "saveforms")
-public class NcrSavedFormEntity {
+@Table(name = "t_fir_saved", schema = "saveforms")
+public class FirSavedFormEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "NCR_SAVE_SRNO")
-    private Long ncrSaveSrno;
+    @Column(name = "FIR_SAVE_SRNO")
+    private Long firSaveSrno;
 
-    @Column(name = "NCR_SAVED_NUM", nullable = false)
-    private Long ncrSavedNum;
+    @Column(name = "FIR_SAVED_NUM", nullable = false)
+    private Long firSavedNum;
 
     @Column(name = "LANG_CD", nullable = false)
     private Integer langCd;
@@ -37,14 +41,26 @@ public class NcrSavedFormEntity {
     @Column(name = "PS_NAME", length = 100)
     private String psName;
 
-    @Column(name = "COMPLAINANT_NAME", length = 300)
+    @Column(name = "COMPLAINANT_NAME", length = 200)
     private String complainantName;
 
-    @Column(name = "IS_NCR_SUBMTTD", length = 1)
-    private String isNcrSubmttd;
+    @Column(name = "IS_SENT_FOR_REV", length = 1)
+    private String isSentForRev;
 
-    @Column(name = "SUBMTTD_NCR_NUM")
-    private Long submttdNcrNum;
+    @Column(name = "SENT_FOR_REVIEW_ON")
+    private LocalDateTime sentForReviewOn;
+
+    @Column(name = "IS_FIR_REVIEWED", length = 1)
+    private String isFirReviewed;
+
+    @Column(name = "IS_FIR_SUBMTTD", length = 1)
+    private String isFirSubmttd;
+
+    @Column(name = "FIR_SUBMTTD_ON")
+    private LocalDateTime firSubmttdOn;
+
+    @Column(name = "SUBMTTD_FIR_NUM")
+    private Long submttdFirNum;
 
     @Column(name = "RECORD_STATUS", length = 1)
     private String recordStatus;
@@ -66,4 +82,5 @@ public class NcrSavedFormEntity {
 
     @Column(name = "RECORD_SYNC_ON")
     private LocalDateTime recordSyncOn;
+
 }

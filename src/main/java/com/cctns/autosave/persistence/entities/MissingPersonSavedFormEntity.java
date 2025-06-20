@@ -5,16 +5,16 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "t_ncr_saved", schema = "saveforms")
-public class NcrSavedFormEntity {
+@Table(name = "t_miss_person_saved", schema = "saveforms")
+public class MissingPersonSavedFormEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "NCR_SAVE_SRNO")
-    private Long ncrSaveSrno;
+    @Column(name = "MPERS_SAVE_SRNO")
+    private Long mpersSaveSrno;
 
-    @Column(name = "NCR_SAVED_NUM", nullable = false)
-    private Long ncrSavedNum;
+    @Column(name = "MPERS_SAVED_NUM", nullable = false)
+    private Long mpersSavedNum;
 
     @Column(name = "LANG_CD", nullable = false)
     private Integer langCd;
@@ -40,11 +40,11 @@ public class NcrSavedFormEntity {
     @Column(name = "COMPLAINANT_NAME", length = 300)
     private String complainantName;
 
-    @Column(name = "IS_NCR_SUBMTTD", length = 1)
-    private String isNcrSubmttd;
+    @Column(name = "IS_MPERS_SUBMTTD", length = 1)
+    private String isMpersSubmttd;
 
-    @Column(name = "SUBMTTD_NCR_NUM")
-    private Long submttdNcrNum;
+    @Column(name = "SUBMTTD_MPERS_NUM")
+    private Long submttdMpersNum;
 
     @Column(name = "RECORD_STATUS", length = 1)
     private String recordStatus;
@@ -66,4 +66,6 @@ public class NcrSavedFormEntity {
 
     @Column(name = "RECORD_SYNC_ON")
     private LocalDateTime recordSyncOn;
+
+
 }
