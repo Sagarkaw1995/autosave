@@ -34,23 +34,23 @@ pipeline {
             }
         }
 
-        stage('Code Analysis') {
-            environment {
-                scannerHome = tool 'Sonar'
-            }
-            steps {
-                script {
-                    withSonarQubeEnv('Sonar') {
-                        sh "${scannerHome}/bin/sonar-scanner \
-                            -Dsonar.projectKey=cctns-autosave-producer \
-                            -Dsonar.projectName=cctns-autosave-producer \
-                            -Dsonar.projectVersion=1.0.0 \
-                            -Dsonar.sources=. \
-                            -Dsonar.java.binaries=target/classes"
-                    }
-                }
-            }
-        }
+//        stage('Code Analysis') {
+//            environment {
+//                scannerHome = tool 'Sonar'
+//            }
+//            steps {
+//                script {
+//                    withSonarQubeEnv('Sonar') {
+//                        sh "${scannerHome}/bin/sonar-scanner \
+//                            -Dsonar.projectKey=cctns-autosave-producer \
+//                            -Dsonar.projectName=cctns-autosave-producer \
+//                            -Dsonar.projectVersion=1.0.0 \
+//                            -Dsonar.sources=. \
+//                            -Dsonar.java.binaries=target/classes"
+//                    }
+//               }
+//            }
+//        }
 
         stage('Build Docker Image') {
             steps {
