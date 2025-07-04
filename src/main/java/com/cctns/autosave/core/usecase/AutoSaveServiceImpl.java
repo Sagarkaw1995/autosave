@@ -37,6 +37,7 @@ private final FirSavedFormRepo firSavedFormRepo;
 private final MissingPersonSavedFormRepo missingPersonSavedFormRepo;
 private final NcrSavedFormRepo ncrSavedFormRepo;
 private final UifpSavedFormRepo uifpSavedFormRepo;
+private final MlcSavedFormRepo mlcSavedFormRepo;
 
     @Value("${redis.ttl.minutes}")
     private Long timeToLive;
@@ -45,7 +46,7 @@ private final UifpSavedFormRepo uifpSavedFormRepo;
    private Long bufferedTimeInSeconds;
 
     public AutoSaveServiceImpl(RedisTemplate<String,LinkedHashMap<String,Object>> redisTemplate, StringRedisTemplate stringRedisTemplate, S3ServiceClient s3ServiceClient,
-                               KafkaTemplate<String, AutoSaveRequestDto> kafkaTemplate, ObjectMapper objectMapper, ComplainantSavedFormRepo complainantSavedFormRepo, FirSavedFormRepo firSavedFormRepo, MissingPersonSavedFormRepo missingPersonSavedFormRepo, NcrSavedFormRepo ncrSavedFormRepo, UifpSavedFormRepo uifpSavedFormRepo) {
+                               KafkaTemplate<String, AutoSaveRequestDto> kafkaTemplate, ObjectMapper objectMapper, ComplainantSavedFormRepo complainantSavedFormRepo, FirSavedFormRepo firSavedFormRepo, MissingPersonSavedFormRepo missingPersonSavedFormRepo, NcrSavedFormRepo ncrSavedFormRepo, UifpSavedFormRepo uifpSavedFormRepo, MlcSavedFormRepo mlcSavedFormRepo) {
         this.redisTemplate = redisTemplate;
         this.stringRedisTemplate = stringRedisTemplate;
         this.s3ServiceClient = s3ServiceClient;
@@ -56,6 +57,7 @@ private final UifpSavedFormRepo uifpSavedFormRepo;
         this.missingPersonSavedFormRepo = missingPersonSavedFormRepo;
         this.ncrSavedFormRepo = ncrSavedFormRepo;
         this.uifpSavedFormRepo = uifpSavedFormRepo;
+        this.mlcSavedFormRepo = mlcSavedFormRepo;
     }
 
     /**
@@ -85,9 +87,11 @@ private final UifpSavedFormRepo uifpSavedFormRepo;
                 case Constants.COMPLAINANT -> {
                     complainantSavedFormRepo.updateComplainantNameByComplSavedNum(complainantName, Long.parseLong(autoSaveData.getSavedNum()));
             }
+
             case Constants.FIR -> {
                     firSavedFormRepo.updateComplainantNameByFirSavedNum(complainantName, Long.parseLong(autoSaveData.getSavedNum()));
                 }
+
             case Constants.MISSING_PERSON -> {
                     missingPersonSavedFormRepo.updateComplainantNameByMpersSavedNum(complainantName, Long.parseLong(autoSaveData.getSavedNum()));
                 }
@@ -98,6 +102,10 @@ private final UifpSavedFormRepo uifpSavedFormRepo;
 
                 case Constants.UIFP -> {
                     uifpSavedFormRepo.updateInformantNameBySavedNum(complainantName, Long.parseLong(autoSaveData.getSavedNum()));
+                }
+
+                case Constants.MLC -> {
+                    mlcSavedFormRepo.updateInjuredNameAndMlcTypeAndMlcSubTypeByMlcSavedNum(complainantName, autoSaveData.getMlcType(), autoSaveData.getMlcSubType() , Long.parseLong(autoSaveData.getSavedNum()));
                 }
                 default -> throw  new InvalidModuleNameException("The Module Name Is Invalid : "+autoSaveData.getModuleName());
         }

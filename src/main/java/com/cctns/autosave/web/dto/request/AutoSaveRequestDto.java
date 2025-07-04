@@ -22,4 +22,8 @@ public class AutoSaveRequestDto {
     private LinkedHashMap<String, Object> jsonData;
     @NotNull(message = "complainantDraftName is mandatory")
     private String complainantDraftName;
+
+    //For mlc :
+    private String mlcType;
+    private String mlcSubType;
 }
