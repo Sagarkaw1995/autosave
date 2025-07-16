@@ -14,7 +14,7 @@ public class Constants {
 	public static final String TIME_FORMAT = "HH:mm:ss";
 	public static final String DATE_FORMAT = "dd/MM/yyyy";
 	public static final String DATE_TIME_FORMAT = "dd-MM-yyyy HH:mm";
-	public static final String success = "GDSaved0001";
+//	public static final String success = "GDSaved0001";
 	public static final String failed = "GDSaved0002";
 	public static final String CIRCUIT_OPEN_FAILURE = "GDSaved0003";
 	public static final String SQL_ERROR = "EXF0001";
@@ -37,4 +37,5 @@ public class Constants {
 	public static final String FIR = "FIR";
 	public static final String NCR = "NCR";
 	public static final String UIFP = "UIFP";
+	public static final String UIDB = "UIDB";
 }

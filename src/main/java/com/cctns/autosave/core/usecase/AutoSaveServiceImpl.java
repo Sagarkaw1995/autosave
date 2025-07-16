@@ -26,6 +26,7 @@ import java.util.List;
 @Slf4j
 @Service
 public class AutoSaveServiceImpl implements AutoSaveUseCase{
+    private final UidbSavedFormRepo uidbSavedFormRepo;
 
     private final RedisTemplate<String,LinkedHashMap<String,Object>> redisTemplate;
     private final StringRedisTemplate stringRedisTemplate;
@@ -46,7 +47,8 @@ private final MlcSavedFormRepo mlcSavedFormRepo;
    private Long bufferedTimeInSeconds;
 
     public AutoSaveServiceImpl(RedisTemplate<String,LinkedHashMap<String,Object>> redisTemplate, StringRedisTemplate stringRedisTemplate, S3ServiceClient s3ServiceClient,
-                               KafkaTemplate<String, AutoSaveRequestDto> kafkaTemplate, ObjectMapper objectMapper, ComplainantSavedFormRepo complainantSavedFormRepo, FirSavedFormRepo firSavedFormRepo, MissingPersonSavedFormRepo missingPersonSavedFormRepo, NcrSavedFormRepo ncrSavedFormRepo, UifpSavedFormRepo uifpSavedFormRepo, MlcSavedFormRepo mlcSavedFormRepo) {
+                               KafkaTemplate<String, AutoSaveRequestDto> kafkaTemplate, ObjectMapper objectMapper, ComplainantSavedFormRepo complainantSavedFormRepo, FirSavedFormRepo firSavedFormRepo, MissingPersonSavedFormRepo missingPersonSavedFormRepo, NcrSavedFormRepo ncrSavedFormRepo, UifpSavedFormRepo uifpSavedFormRepo, MlcSavedFormRepo mlcSavedFormRepo,
+                               UidbSavedFormRepo uidbSavedFormRepo) {
         this.redisTemplate = redisTemplate;
         this.stringRedisTemplate = stringRedisTemplate;
         this.s3ServiceClient = s3ServiceClient;
@@ -58,6 +60,7 @@ private final MlcSavedFormRepo mlcSavedFormRepo;
         this.ncrSavedFormRepo = ncrSavedFormRepo;
         this.uifpSavedFormRepo = uifpSavedFormRepo;
         this.mlcSavedFormRepo = mlcSavedFormRepo;
+        this.uidbSavedFormRepo = uidbSavedFormRepo;
     }
 
     /**
@@ -107,6 +110,11 @@ private final MlcSavedFormRepo mlcSavedFormRepo;
                 case Constants.MLC -> {
                     mlcSavedFormRepo.updateInjuredNameAndMlcTypeAndMlcSubTypeByMlcSavedNum(complainantName, autoSaveData.getMlcType(), autoSaveData.getMlcSubType() , Long.parseLong(autoSaveData.getSavedNum()));
                 }
+
+                    case Constants.UIDB -> {
+                        uidbSavedFormRepo.updateInformantNameByUidbSavedNum(complainantName,Long.parseLong(autoSaveData.getSavedNum()));
+                    }
+
                 default -> throw  new InvalidModuleNameException("The Module Name Is Invalid : "+autoSaveData.getModuleName());
         }
     }
