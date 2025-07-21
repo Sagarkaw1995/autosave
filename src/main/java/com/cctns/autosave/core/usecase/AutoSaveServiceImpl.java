@@ -34,11 +34,12 @@ public class AutoSaveServiceImpl implements AutoSaveUseCase{
     private final KafkaTemplate<String, AutoSaveRequestDto> kafkaTemplate;
     private final ObjectMapper objectMapper;
     private final ComplainantSavedFormRepo complainantSavedFormRepo;
-private final FirSavedFormRepo firSavedFormRepo;
-private final MissingPersonSavedFormRepo missingPersonSavedFormRepo;
-private final NcrSavedFormRepo ncrSavedFormRepo;
-private final UifpSavedFormRepo uifpSavedFormRepo;
-private final MlcSavedFormRepo mlcSavedFormRepo;
+    private final FirSavedFormRepo firSavedFormRepo;
+    private final MissingPersonSavedFormRepo missingPersonSavedFormRepo;
+    private final NcrSavedFormRepo ncrSavedFormRepo;
+    private final UifpSavedFormRepo uifpSavedFormRepo;
+    private final MlcSavedFormRepo mlcSavedFormRepo;
+    private final ArrestSavedFormRepo arrestSavedFormRepo;
 
     @Value("${redis.ttl.minutes}")
     private Long timeToLive;
@@ -48,7 +49,7 @@ private final MlcSavedFormRepo mlcSavedFormRepo;
 
     public AutoSaveServiceImpl(RedisTemplate<String,LinkedHashMap<String,Object>> redisTemplate, StringRedisTemplate stringRedisTemplate, S3ServiceClient s3ServiceClient,
                                KafkaTemplate<String, AutoSaveRequestDto> kafkaTemplate, ObjectMapper objectMapper, ComplainantSavedFormRepo complainantSavedFormRepo, FirSavedFormRepo firSavedFormRepo, MissingPersonSavedFormRepo missingPersonSavedFormRepo, NcrSavedFormRepo ncrSavedFormRepo, UifpSavedFormRepo uifpSavedFormRepo, MlcSavedFormRepo mlcSavedFormRepo,
-                               UidbSavedFormRepo uidbSavedFormRepo) {
+                               UidbSavedFormRepo uidbSavedFormRepo, ArrestSavedFormRepo arrestSavedFormRepo) {
         this.redisTemplate = redisTemplate;
         this.stringRedisTemplate = stringRedisTemplate;
         this.s3ServiceClient = s3ServiceClient;
@@ -61,6 +62,7 @@ private final MlcSavedFormRepo mlcSavedFormRepo;
         this.uifpSavedFormRepo = uifpSavedFormRepo;
         this.mlcSavedFormRepo = mlcSavedFormRepo;
         this.uidbSavedFormRepo = uidbSavedFormRepo;
+        this.arrestSavedFormRepo = arrestSavedFormRepo;
     }
 
     /**
@@ -89,17 +91,17 @@ private final MlcSavedFormRepo mlcSavedFormRepo;
             switch (autoSaveData.getModuleName()) {
                 case Constants.COMPLAINANT -> {
                     complainantSavedFormRepo.updateComplainantNameByComplSavedNum(complainantName, Long.parseLong(autoSaveData.getSavedNum()));
-            }
+                }
 
-            case Constants.FIR -> {
+                case Constants.FIR -> {
                     firSavedFormRepo.updateComplainantNameByFirSavedNum(complainantName, Long.parseLong(autoSaveData.getSavedNum()));
                 }
 
-            case Constants.MISSING_PERSON -> {
+                case Constants.MISSING_PERSON -> {
                     missingPersonSavedFormRepo.updateComplainantNameByMpersSavedNum(complainantName, Long.parseLong(autoSaveData.getSavedNum()));
                 }
 
-            case Constants.NCR -> {
+                case Constants.NCR -> {
                     ncrSavedFormRepo.updateComplainantNameByNcrSavedNum(complainantName, Long.parseLong(autoSaveData.getSavedNum()));
                 }
 
@@ -108,16 +110,21 @@ private final MlcSavedFormRepo mlcSavedFormRepo;
                 }
 
                 case Constants.MLC -> {
-                    mlcSavedFormRepo.updateInjuredNameAndMlcTypeAndMlcSubTypeByMlcSavedNum(complainantName, autoSaveData.getMlcType(), autoSaveData.getMlcSubType() , Long.parseLong(autoSaveData.getSavedNum()));
+                    mlcSavedFormRepo.updateInjuredNameAndMlcTypeAndMlcSubTypeByMlcSavedNum(complainantName, autoSaveData.getMlcType(), autoSaveData.getMlcSubType(), Long.parseLong(autoSaveData.getSavedNum()));
                 }
 
-                    case Constants.UIDB -> {
-                        uidbSavedFormRepo.updateInformantNameByUidbSavedNum(complainantName,Long.parseLong(autoSaveData.getSavedNum()));
-                    }
+                case Constants.UIDB -> {
+                    uidbSavedFormRepo.updateInformantNameByUidbSavedNum(complainantName, Long.parseLong(autoSaveData.getSavedNum()));
+                }
 
-                default -> throw  new InvalidModuleNameException("The Module Name Is Invalid : "+autoSaveData.getModuleName());
+                case Constants.ARREST_MEMO -> {
+                    arrestSavedFormRepo.updateAccusedNameByArrestSavedNum(complainantName,Long.parseLong(autoSaveData.getSavedNum()));
+                }
+
+                default ->
+                        throw new InvalidModuleNameException("The Module Name Is Invalid : " + autoSaveData.getModuleName());
+            }
         }
-    }
 
 
         if (Boolean.TRUE.equals(redisTemplate.hasKey(autoSaveData.getSavedNum()))) {
@@ -147,7 +154,7 @@ private final MlcSavedFormRepo mlcSavedFormRepo;
                 }
             });
         }
-        }
+    }
 
 
 

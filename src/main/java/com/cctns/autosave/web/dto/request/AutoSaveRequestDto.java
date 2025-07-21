@@ -26,4 +26,7 @@ public class AutoSaveRequestDto {
     //For mlc :
     private String mlcType;
     private String mlcSubType;
+
+    //For Arrest Type :
+   // private String arrestType;
 }

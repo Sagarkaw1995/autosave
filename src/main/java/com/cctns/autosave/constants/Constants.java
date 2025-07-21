@@ -38,4 +38,5 @@ public class Constants {
 	public static final String NCR = "NCR";
 	public static final String UIFP = "UIFP";
 	public static final String UIDB = "UIDB";
+	public static final String ARREST_MEMO = "ARREST_MEMO";
 }

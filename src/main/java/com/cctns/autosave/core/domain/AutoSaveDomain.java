@@ -17,6 +17,7 @@ public class AutoSaveDomain {
     private String mlcType;
     private String mlcSubType;
     private String complainantDraftName;
+   // private String arrestType;
     private String savedNum;
     private Integer langCd;
     private Integer psCd;

@@ -8,21 +8,22 @@ import lombok.Setter;
 
 import java.time.LocalDateTime;
 
+
 @Getter
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
 @Entity
-@Table(name = "t_ncr_saved", schema = "saveforms")
-public class NcrSavedFormEntity {
+@Table(name = "t_arrest_saved", schema = "saveforms")
+public class ArrestSavedFormEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "NCR_SAVE_SRNO")
-    private Long ncrSaveSrno;
+    @Column(name = "ARREST_SAVE_SRNO")
+    private Long arrestSaveSrno;
 
-    @Column(name = "NCR_SAVED_NUM", nullable = false)
-    private Long ncrSavedNum;
+    @Column(name = "ARREST_SAVED_NUM", nullable = false)
+    private Long arrestSavedNum;
 
     @Column(name = "LANG_CD", nullable = false)
     private Integer langCd;
@@ -45,14 +46,23 @@ public class NcrSavedFormEntity {
     @Column(name = "PS_NAME", length = 100)
     private String psName;
 
-    @Column(name = "COMPLAINANT_NAME", length = 300)
-    private String complainantName;
+    @Column(name = "ACCUSED_NAME", length = 400)
+    private String accusedName;
 
-    @Column(name = "IS_NCR_SUBMTTD", length = 1)
-    private String isNcrSubmttd;
+    @Column(name = "ARREST_TYPE", length = 20)
+    private String arrestType;
 
-    @Column(name = "SUBMTTD_NCR_NUM")
-    private Long submttdNcrNum;
+    @Column(name = "CASE_REG_NUM", length = 30)
+    private String caseRegNum;
+
+    @Column(name = "GD_NUM", length = 30)
+    private String gdNum;
+
+    @Column(name = "IS_ARREST_SUBMTTD", length = 1)
+    private String isArrestSubmttd;
+
+    @Column(name = "SUBMTTD_ARREST_NUM")
+    private Long submttdArrestNum;
 
     @Column(name = "RECORD_STATUS", length = 1)
     private String recordStatus;
@@ -74,4 +84,5 @@ public class NcrSavedFormEntity {
 
     @Column(name = "RECORD_SYNC_ON")
     private LocalDateTime recordSyncOn;
+
 }
