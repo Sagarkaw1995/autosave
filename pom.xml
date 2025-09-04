@@ -9,10 +9,10 @@
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.cctns</groupId>
-	<artifactId>cctns-autosave-producer</artifactId>
+	<artifactId>cctns-autosave-producer-servics</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>cctns-autosave-producer</name>
-	<description>Autosave Producer</description>
+	<name>cctns-autosave-producer-servics</name>
+	<description>Autosave Producer Servics</description>
 	<url/>
 	<licenses>
 		<license/>
