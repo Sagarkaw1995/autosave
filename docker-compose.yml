@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  cctns-autosave-producer-service:
+    image: cctns-autosave-producer-service:1.0.1
+    container_name: cctns-autosave-producer-service
+    ports:
+      - "9128:9128"
+    environment:
+       SPRING_DATASOURCE_USERNAME: "${DB_CREDS_USR}"
+       SPRING_DATASOURCE_PASSWORD: "${DB_CREDS_PSW}"
+       ENCRYPTION_ENC_ALGORITHM: "${ENC_ALGORITHM}"
+       ENCRYPTION_SECRET_KEY_STRING: "${SECRET_KEY_STRING}"
+       IRAD_USERNAME: "${IRAD_CREDS_USR}"
+       IRAD_PASSWORD: "${IRAD_CREDS_PSW}"
+       NAPIX_USERNAME: "${NAPIX_CREDS_USR}"
+       NAPIX_PASSWORD: "${NAPIX_CREDS_PSW}"
+       SPRING_CONFIG_ADDITIONAL_LOCATION: "/app/application.properties"
+    volumes:
+      - /var/log/microservices/cctns-autosave-producer-service:/app/logs
+      - /etc/localtime:/etc/localtime:ro
+      - /var/lib/jenkins/config-dev/cctns-autosave-producer-service-dev.properties:/app/application.properties
+    restart: always
+    networks:
+      - microservices_overlay
+
+networks:
+  microservices_overlay:
+    external: true
