@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   cctns-autosave-producer-service:
-    image: cctns-autosave-producer-service:1.0.1
+    image: cctns-autosave-producer-service:1.0.2
     container_name: cctns-autosave-producer-service
     ports:
       - "9128:9128"
