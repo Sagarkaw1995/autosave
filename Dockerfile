@@ -1,4 +1,4 @@
-FROM 10.212.113.11:5000/openjdk-debian-13:21-slim
+FROM 10.212.113.11:5000/openjdk-21-debian-13:1.0.0
 
 # Set the working directory for the appliocation
 WORKDIR /app
