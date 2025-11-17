@@ -20,7 +20,7 @@ public class AutoSaveRequestDto {
     private String savedNum;
     @NotNull(message = "jsonData field is mandatory")
     private LinkedHashMap<String, Object> jsonData;
-    @NotNull(message = "complainantDraftName is mandatory")
+   // @NotNull(message = "complainantDraftName is mandatory")
     private String complainantDraftName;
 
     //For mlc :
