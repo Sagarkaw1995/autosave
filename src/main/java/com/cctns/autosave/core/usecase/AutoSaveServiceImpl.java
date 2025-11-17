@@ -121,8 +121,9 @@ public class AutoSaveServiceImpl implements AutoSaveUseCase{
                     arrestSavedFormRepo.updateAccusedNameByArrestSavedNum(complainantName,Long.parseLong(autoSaveData.getSavedNum()));
                 }
 
-                default ->
-                        throw new InvalidModuleNameException("The Module Name Is Invalid : " + autoSaveData.getModuleName());
+                default ->{
+
+                }
             }
         }
 
