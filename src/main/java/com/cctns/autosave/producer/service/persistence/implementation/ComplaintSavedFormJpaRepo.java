@@ -1,0 +1,17 @@
+package com.cctns.autosave.producer.service.persistence.implementation;
+
+import com.cctns.autosave.producer.service.persistence.entity.ComplaintSavedFormEntity;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
+
+@Repository
+public interface ComplaintSavedFormJpaRepo extends JpaRepository<ComplaintSavedFormEntity,Long> {
+
+    @Transactional
+    @Modifying
+    @Query("update ComplaintSavedFormEntity c set c.complainantName = ?1 where c.complSavedNum = ?2 AND (c.complainantName IS NULL OR c.complainantName <> ?1)")
+    int updateComplainantNameByComplSavedNum(String complainantName, Long complSavedNum);
+}

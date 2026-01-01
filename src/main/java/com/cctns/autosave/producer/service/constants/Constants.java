@@ -1,0 +1,63 @@
+package com.cctns.autosave.producer.service.constants;
+
+import lombok.Data;
+
+@Data
+public class Constants {
+    private Constants() {
+        super();
+    }
+
+    //Date and time constants :
+    public static final String TIME_FORMAT = "HH:mm:ss";
+    public static final String DATE_FORMAT = "dd/MM/yyyy";
+    public static final String DATE_TIME_FORMAT = "dd-MM-yyyy HH:mm";
+
+    //Validation Response Code :
+    public static final String PARSE_MAPPING_ERRORS = "EXF0001";
+    public static final String VALIDATION_ERRORS = "EXF0002";
+    public static final String DATABASE_CONSTRAINTS_ERRORS = "EXF0003";
+    public static final String ENTITY_NOT_FOUND_ERRORS = "EXF0004";
+    public static final String LAZY_INIT_ERRORS = "EXF0005";
+    public static final String ILLEGAL_ARGS_ERRORS = "EXF0006";
+    public static final String CONCURRENT_UPDATE_CONFLICT = "EXF0007";
+    public static final String TRANSACTION_FAILURE_ERROR = "EXF0008";
+    public static final String FEIGN_ERRORS = "EXF0009";
+    public static final String FALLBACK_ERRORS = "EXF0010";
+    public static final String METHOD_ARGUMENT_NOT_VALID = "EXF0011";
+    public static final String VALIDATION_FAILED_EXC = "VFEX";
+
+    public static final String SQL_ERROR = "EXF0001";
+    public static final String EX0001 = "CONSTRAINT SQL ERROR";
+    public static final String EX0002 = "SQL Error";
+    public static final String EX0003 = "UNIQUE KEY CONSTRAINT 1";
+    public static final String NOT_FOUND = "EXF0002";
+    public static final String CONSTRAINT_SQL_ERROR = "EXF0003";
+    public static final String LIST_NOT_FOUND = "EXF0004";
+
+    //Success Message :
+    public static final String SUCCESS = "SUCCESS";
+    public static final String SAVE_DRAFT_SUCCESSFULLY = "SDS0001";
+    public static final String FETCH_DRAFT_SUCCESSFULLY = "FDS0001";
+
+    //Fail Message :
+    public static final String UNIQUE_KEY_CONSTRAINT_ERROR = "EXF0005";
+    public static final String DATA_NOT_FOUND = "Data Not Found";
+    public static final String DATA_FOUND = " Data fetched successfully";
+
+    //Autosave Supported Service Constants :
+    public static final String COMPLAINANT = "COMPL";
+    public static final String MLC = "MLC";
+    public static final String MISSING_PERSON = "MISSING";
+    public static final String FIR = "FIR";
+    public static final String NCR = "NCR";
+    public static final String UIFP = "UIFP";
+    public static final String UIDB = "UIDB";
+    public static final String ARREST_MEMO = "ARREST_MEMO";
+
+    //Autosave Service Constants :
+    public static final String DRAFT_NUMBER_DELIMITER = "_";
+    public static final String SHARD_TAG_START ="{";
+    public static final String SHARD_TAG_END ="}";
+    public static final Integer SHARD_COUNT = 32;
+}
