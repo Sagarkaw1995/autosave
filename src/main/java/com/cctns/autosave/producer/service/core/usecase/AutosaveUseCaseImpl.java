@@ -51,7 +51,7 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
      * @param draftNum (Draft Number)
      */
     private void validateDraftNumber(String draftNum) {
-        if (draftNum == null || draftNum.isBlank() || !draftNum.matches("^[A-Z]+_\\d+_\\{\\d+}$")) {
+        if (draftNum == null || draftNum.isBlank() || !draftNum.matches(Constants.VALIDATION_EXPRESSION)) {
             throw new InvalidDraftNumberFormat("Draft Number Is Not Valid");
         }
     }

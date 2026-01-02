@@ -54,10 +54,15 @@ public class Constants {
     public static final String UIFP = "UIFP";
     public static final String UIDB = "UIDB";
     public static final String ARREST_MEMO = "ARREST_MEMO";
+    public static final String PREVENTIVE_ACTION = "PREVENTIVE_ACTION";
 
     //Autosave Service Constants :
     public static final String DRAFT_NUMBER_DELIMITER = "_";
     public static final String SHARD_TAG_START ="{";
     public static final String SHARD_TAG_END ="}";
     public static final Integer SHARD_COUNT = 32;
+
+
+    //Expression for validation :
+    public static final String VALIDATION_EXPRESSION = "^[A-Z]+(?:_[A-Z]+)*_\\d+_\\{\\d+}$";
 }
