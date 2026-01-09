@@ -64,5 +64,5 @@ public class Constants {
 
 
     //Expression for validation :
-    public static final String VALIDATION_EXPRESSION = "^[A-Z]+(?:_[A-Z]+)*_\\d+_\\{\\d+}$";
+    public static final String VALIDATION_EXPRESSION = "^[A-Z]+(?:[_/][A-Z]+)*_\\d+_\\{\\d+}$";
 }
