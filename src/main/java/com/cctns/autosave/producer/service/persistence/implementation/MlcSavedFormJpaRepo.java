@@ -11,9 +11,16 @@ public interface MlcSavedFormJpaRepo extends JpaRepository<MlcSavedFormEntity, L
     @Transactional
     @Modifying
     @Query("""
-            update MlcSavedFormEntity m set m.injuredName = ?1, m.mlcType = ?2, m.mlcSubType = ?3
-            where m.mlcSavedNum = ?4 AND (m.injuredName IS NULL OR m.injuredName <> ?1) 
-            AND (m.mlcType IS NULL OR m.mlcType <> ?2) 
-            AND ( m.mlcSubType IS NULL OR m.mlcSubType <> ?3) """)
+    update MlcSavedFormEntity m
+       set m.injuredName = ?1,
+           m.mlcType = ?2,
+           m.mlcSubType = ?3
+     where m.mlcSavedNum = ?4
+       and (
+            (m.injuredName is null or m.injuredName <> ?1)
+         or (m.mlcType is null or m.mlcType <> ?2)
+         or (m.mlcSubType is null or m.mlcSubType <> ?3)
+       )
+""")
     int updateInjuredNameAndMlcTypeAndMlcSubTypeByMlcSavedNum(String injuredName, String mlcType, String mlcSubType, Long mlcSavedNum);
 }

@@ -12,3 +12,4 @@ public interface MissingPersonSavedFormJpaRepo extends JpaRepository<MissingPers
     @Query("update MissingPersonSavedFormEntity m set m.complainantName = ?1 where m.mpersSavedNum = ?2  AND (m.complainantName IS NULL OR m.complainantName <> ?1)")
     int updateComplainantNameByMpersSavedNum(String complainantName, Long mpersSavedNum);
 }
+
