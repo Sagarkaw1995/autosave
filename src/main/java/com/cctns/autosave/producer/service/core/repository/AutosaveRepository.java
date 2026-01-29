@@ -24,4 +24,6 @@ public interface AutosaveRepository {
     public Integer updateUidbSaveForm(String complainantName, Long savedNum);
 
     public Integer updateArrestSaveForm(String complainantName, Long savedNum);
+
+    public Integer updateStrangerRollSaveForm(String complainantName, Long savedNum);
 }

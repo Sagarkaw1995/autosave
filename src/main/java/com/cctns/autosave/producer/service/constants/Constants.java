@@ -55,6 +55,8 @@ public class Constants {
     public static final String UIDB = "UIDB";
     public static final String ARREST_MEMO = "ARREST_MEMO";
     public static final String PREVENTIVE_ACTION = "PREVENTIVE_ACTION";
+    public static final String STRANGER_ROLL = "STRANGER_ROLL";
+
 
     //Autosave Service Constants :
     public static final String DRAFT_NUMBER_DELIMITER = "_";

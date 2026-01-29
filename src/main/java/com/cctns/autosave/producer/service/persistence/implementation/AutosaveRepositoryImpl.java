@@ -14,8 +14,9 @@ public class AutosaveRepositoryImpl implements AutosaveRepository {
     private final NcrSavedFormJpaRepo ncrSavedFormJpaRepo;
     private final UidbSavedFormJpaRepo uidbSavedFormJpaRepo;
     private final UifpSavedFormJpaRepo uifpSavedFormJpaRepo;
+    private final StrangerRollJpaRepository strangerRollJpaRepository;
 
-    public AutosaveRepositoryImpl(ArrestSavedFormJpaRepo arrestSavedFormJpaRepo, ComplaintSavedFormJpaRepo complaintSavedFormJpaRepo, FirSavedFormJpaRepo firSavedFormJpaRepo, MissingPersonSavedFormJpaRepo missingPersonSavedFormJpaRepo, MlcSavedFormJpaRepo mlcSavedFormJpaRepo, NcrSavedFormJpaRepo ncrSavedFormJpaRepo, UidbSavedFormJpaRepo uidbSavedFormJpaRepo, UifpSavedFormJpaRepo uifpSavedFormJpaRepo) {
+    public AutosaveRepositoryImpl(ArrestSavedFormJpaRepo arrestSavedFormJpaRepo, ComplaintSavedFormJpaRepo complaintSavedFormJpaRepo, FirSavedFormJpaRepo firSavedFormJpaRepo, MissingPersonSavedFormJpaRepo missingPersonSavedFormJpaRepo, MlcSavedFormJpaRepo mlcSavedFormJpaRepo, NcrSavedFormJpaRepo ncrSavedFormJpaRepo, UidbSavedFormJpaRepo uidbSavedFormJpaRepo, UifpSavedFormJpaRepo uifpSavedFormJpaRepo, StrangerRollJpaRepository strangerRollJpaRepository) {
         this.arrestSavedFormJpaRepo = arrestSavedFormJpaRepo;
         this.complaintSavedFormJpaRepo = complaintSavedFormJpaRepo;
         this.firSavedFormJpaRepo = firSavedFormJpaRepo;
@@ -24,6 +25,7 @@ public class AutosaveRepositoryImpl implements AutosaveRepository {
         this.ncrSavedFormJpaRepo = ncrSavedFormJpaRepo;
         this.uidbSavedFormJpaRepo = uidbSavedFormJpaRepo;
         this.uifpSavedFormJpaRepo = uifpSavedFormJpaRepo;
+        this.strangerRollJpaRepository = strangerRollJpaRepository;
     }
 
 
@@ -65,5 +67,10 @@ public class AutosaveRepositoryImpl implements AutosaveRepository {
     @Override
     public Integer updateArrestSaveForm(String complainantName, Long savedNum) {
         return arrestSavedFormJpaRepo.updateAccusedNameByArrestSavedNum(complainantName, savedNum);
+    }
+
+    @Override
+    public Integer updateStrangerRollSaveForm(String complainantName, Long savedNum) {
+        return strangerRollJpaRepository.updateInformantNameBySavedNum(complainantName,savedNum);
     }
 }

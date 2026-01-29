@@ -154,6 +154,8 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
 
                 case Constants.ARREST_MEMO -> autosaveRepository.updateArrestSaveForm(complainantName, request.getSavedNum());
 
+                case Constants.STRANGER_ROLL -> autosaveRepository.updateStrangerRollSaveForm(complainantName,request.getSavedNum());
+
                 default -> log.info("The Module : {} Complainant Is Not Getting Updated ", request.getModuleName());
             }
         }
