@@ -8,7 +8,6 @@ import com.cctns.autosave.producer.service.web.dto.request.AutosaveRequestDto;
 import com.cctns.autosave.producer.service.web.dto.response.ApiResponse;
 import com.cctns.autosave.producer.service.web.dto.response.AutosaveJsonResponseDto;
 import com.cctns.autosave.producer.service.web.dto.response.AutosaveResponseDto;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import jakarta.validation.Valid;
 import org.modelmapper.ModelMapper;
 import org.springframework.http.HttpStatus;
@@ -40,7 +39,7 @@ private final AutosaveUseCase autosaveUseCase;
      */
     @PostMapping("/saveDraftData")
     public ResponseEntity<?> submitAutoSave(@Valid @RequestBody AutosaveRequestDto request) {
-        AutosaveDomain response = autosaveUseCase.persistAutosaveData(modelMapper.map(request, AutosaveDomain.class));
+        AutosaveDomain response = autosaveUseCase.sentinelPersist(modelMapper.map(request, AutosaveDomain.class));
         ApiResponse<?> apiResponse = ApiResponse.builder()
                 .statusCode(HttpStatus.OK.value())
                 .status(HttpStatus.OK.name())

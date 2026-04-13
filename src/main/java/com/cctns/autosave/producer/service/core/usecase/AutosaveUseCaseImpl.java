@@ -15,8 +15,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -123,6 +122,53 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
             throw new SaveNumCannotBeNullException("SaveNum Is Null");
         }
         return (int) (saveNum % Constants.SHARD_COUNT);
+    }
+
+    /**
+     * Add the data hierarchy order pscd -> login -> module Name -> draft list
+     * @param request
+     * @return
+     */
+    @Override
+    public AutosaveDomain sentinelPersist(AutosaveDomain request){
+        String psCd = request.getPsCd().toString();
+        String loginId = request.getLoginId();
+        String module = request.getModuleName();
+
+        String tag = "{" + psCd + "}";
+        String draftId = UUID.randomUUID().toString();
+
+        //Module-Specific Counter For Serial Number
+        String seqKey = "AUTO-SAVE:SEQ:" + psCd + ":" + loginId + ":" + module + "_" + tag;
+        Long srNo = redisZSetTemplate.opsForValue().increment(seqKey);
+
+        //Hierarchy Navigation
+        //Police station set
+        redisZSetTemplate.opsForSet().add("AUTO-SAVE:POLICE-STATIONS", psCd);
+
+        //Users Set
+        redisZSetTemplate.opsForSet().add("AUTO-SAVE:POLICE-STATIONS:" + psCd + ":LOGIN-IDS", loginId);
+
+        //Module Set
+        redisZSetTemplate.opsForSet().add("AUTO-SAVE:POLICE-STATIONS:" + psCd + ":LOGIN-IDS:" + loginId + ":MODULES", module);
+
+        //Draft List Metadata : List of draft
+        String listKey = "AUTO-SAVE:POLICE-STATIONS:" + psCd + ":LOGIN-IDS:" + loginId + ":MODULES:" + module;
+
+        LinkedHashMap<String, Object> gridMeta = new LinkedHashMap<>();
+        gridMeta.put("srNo", srNo);
+        gridMeta.put("complainantName", request.getComplainantDraftName());
+        gridMeta.put("draftId", draftId);
+        gridMeta.put("timestamp", System.currentTimeMillis());
+
+        // Use your JSON template for the Metadata Map
+        redisJsonTemplate.opsForHash().put(listKey, draftId, gridMeta);
+
+        // 4. Actual Heavy Draft Data (String) - The "Big Payload"
+        String dataKey = "AUTO-SAVE:DRAFT-DATA:" + draftId + "_" + tag;
+        redisJsonTemplate.opsForValue().set(dataKey, request.getJsonData());
+
+        return request;
     }
 
     /**

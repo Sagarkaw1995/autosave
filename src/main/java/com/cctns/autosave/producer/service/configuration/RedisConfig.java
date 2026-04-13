@@ -7,6 +7,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisClusterConfiguration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.RedisPassword;
+import org.springframework.data.redis.connection.RedisSentinelConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -24,18 +25,28 @@ import java.util.LinkedHashMap;
 public class RedisConfig {
 
     /**
-     * Redis connection factory for the Redis cluster
+     * Redis connection factory for the Redis sentinel
      * @param redisProperties (Redis Properties)
      * @return Redis Connection
      */
     @Bean
     public RedisConnectionFactory redisConnectionFactory(RedisProperties redisProperties) {
 
-        RedisClusterConfiguration clusterConfig =
-                new RedisClusterConfiguration(redisProperties.getCluster().getNodes());
+        RedisSentinelConfiguration sentinelConfig = new RedisSentinelConfiguration();
+        sentinelConfig.setMaster(redisProperties.getSentinel().getMaster());
+
+        redisProperties.getSentinel().getNodes().forEach(node -> {
+            String[] hostPort = node.split(":");
+            sentinelConfig.sentinel(hostPort[0], Integer.parseInt(hostPort[1]));
+        });
 
         if (redisProperties.getPassword() != null) {
-            clusterConfig.setPassword(RedisPassword.of(redisProperties.getPassword()));
+            sentinelConfig.setPassword(RedisPassword.of(redisProperties.getPassword()));
+        }
+
+        if (redisProperties.getSentinel().getPassword() != null) {
+            sentinelConfig.setSentinelPassword(
+                    RedisPassword.of(redisProperties.getSentinel().getPassword()));
         }
 
         LettuceClientConfiguration clientConfig =
@@ -43,7 +54,7 @@ public class RedisConfig {
                         .commandTimeout(redisProperties.getTimeout())
                         .build();
 
-        return new LettuceConnectionFactory(clusterConfig, clientConfig);
+        return new LettuceConnectionFactory(sentinelConfig, clientConfig);
     }
 
     /**

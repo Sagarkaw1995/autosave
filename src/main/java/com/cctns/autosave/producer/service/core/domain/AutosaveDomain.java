@@ -16,6 +16,10 @@ import java.util.LinkedHashMap;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class AutosaveDomain {
 
+    private Integer psCd;
+    private String loginId;
+
+
     private String moduleName;
     private Long savedNum;
     private LinkedHashMap<String, Object> jsonData;

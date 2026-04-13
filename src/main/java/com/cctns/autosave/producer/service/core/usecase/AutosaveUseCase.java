@@ -4,6 +4,8 @@ import com.cctns.autosave.producer.service.core.domain.AutosaveDomain;
 
 public interface AutosaveUseCase {
 
+    AutosaveDomain sentinelPersist(AutosaveDomain request);
+
     /**
      * Persists the key value pair in redis cache
      * @param request (AutosaveDomain)
