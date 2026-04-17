@@ -10,9 +10,8 @@ import lombok.Setter;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class AutosaveGetRequestDto extends CommonParamsDTO{
+public class AutosaveCreateRequest extends CommonParamsDTO {
+
     @NotNull(message = "moduleName is mandatory")
     private String moduleName;
-    @NotNull(message = "DraftId is mandatory")
-    private String draftId;
 }

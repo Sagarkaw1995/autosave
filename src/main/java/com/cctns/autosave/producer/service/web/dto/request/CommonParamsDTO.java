@@ -1,27 +1,31 @@
-package com.cctns.autosave.producer.service.core.domain;
+package com.cctns.autosave.producer.service.web.dto.request;
 
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
-import java.util.LinkedHashMap;
 import java.util.List;
 
 @Getter
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class AutosaveDomain {
+public class CommonParamsDTO {
+    //user credentials
+    @NotNull(message = "staffId is mandatory")
     private Long staffId;
     private String loginId;
+    @NotNull(message = "langCd is mandatory")
     private Integer langCd;
     private List<Integer> roleCd;   //current selected role
     private Long officeCd;
     private Integer stateCd;
+    @NotNull(message = "stateId is mandatory")
     private Long stateId;
     private Integer districtCd;
+    @NotNull(message = "districtId is mandatory")
     private Long districtId;
     private Integer psCd;
     private Long psId;
@@ -30,20 +34,7 @@ public class AutosaveDomain {
     private Integer rankCd;
     private Integer officeLevelCd;
     private List<Integer> allowedRoleCd;    //all available role for that user
+    @NotNull(message = "oicStaffId is mandatory")
     private Long oicStaffId;
     private String oicLoginId;
-
-
-    private String draftId;
-    private String moduleName; //Used for creating ,
-
-
-    private String complainantDraftName;
-    private String mlcType;
-    private String mlcSubType;
-    private LinkedHashMap<String, Object> jsonData;
-
-    //Other fields :
-    private String draftNumber;
-    private LocalDateTime opTime;
 }

@@ -5,15 +5,14 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
-import java.util.LinkedHashMap;
 import java.util.List;
 
 @Getter
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class AutosaveDomain {
+public class CommonParamsDomain {
+
     private Long staffId;
     private String loginId;
     private Integer langCd;
@@ -32,18 +31,4 @@ public class AutosaveDomain {
     private List<Integer> allowedRoleCd;    //all available role for that user
     private Long oicStaffId;
     private String oicLoginId;
-
-
-    private String draftId;
-    private String moduleName; //Used for creating ,
-
-
-    private String complainantDraftName;
-    private String mlcType;
-    private String mlcSubType;
-    private LinkedHashMap<String, Object> jsonData;
-
-    //Other fields :
-    private String draftNumber;
-    private LocalDateTime opTime;
 }

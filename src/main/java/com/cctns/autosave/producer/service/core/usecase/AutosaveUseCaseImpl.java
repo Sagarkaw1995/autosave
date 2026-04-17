@@ -8,17 +8,32 @@ import com.cctns.autosave.producer.service.core.exception.NoAutoSaveDataFoundExc
 import com.cctns.autosave.producer.service.core.exception.SaveNumCannotBeNullException;
 import com.cctns.autosave.producer.service.core.external.port.MicroserviceComms;
 import com.cctns.autosave.producer.service.core.repository.AutosaveRepository;
+import com.cctns.autosave.producer.service.web.dto.response.AutosaveCreateResponse;
+import com.cctns.autosave.producer.service.web.dto.response.AutosaveDeleteResponse;
+import com.cctns.autosave.producer.service.web.dto.response.AutosaveDraftListResponse;
+import com.cctns.autosave.producer.service.web.dto.response.AutosaveResponseDto;
+import com.cctns.autosave.producer.service.web.dto.response.GetFormDataResponse;
+import com.cctns.autosave.producer.service.web.dto.response.UpdateResponseDto;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 @Slf4j
 public class AutosaveUseCaseImpl implements AutosaveUseCase{
@@ -37,12 +52,14 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
 
     private final MicroserviceComms microserviceComms;
     private final AutosaveRepository autosaveRepository;
+    private final ObjectMapper objectMapper;
 
-    public AutosaveUseCaseImpl(RedisTemplate<String,LinkedHashMap<String,Object>> redisJsonTemplate, RedisTemplate<String, String> redisZSetTemplate, MicroserviceComms microserviceComms, AutosaveRepository autosaveRepository) {
+    public AutosaveUseCaseImpl(RedisTemplate<String,LinkedHashMap<String,Object>> redisJsonTemplate, RedisTemplate<String, String> redisZSetTemplate, MicroserviceComms microserviceComms, AutosaveRepository autosaveRepository, ObjectMapper objectMapper) {
         this.redisJsonTemplate = redisJsonTemplate;
         this.redisZSetTemplate = redisZSetTemplate;
         this.microserviceComms = microserviceComms;
         this.autosaveRepository = autosaveRepository;
+        this.objectMapper = objectMapper;
     }
 
     /**
@@ -130,7 +147,7 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
      * @return
      */
     @Override
-    public AutosaveDomain sentinelPersist(AutosaveDomain request){
+    public AutosaveCreateResponse sentinelPersist(AutosaveDomain request){
         String psCd = request.getPsCd().toString();
         String loginId = request.getLoginId();
         String module = request.getModuleName();
@@ -156,10 +173,10 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
         String listKey = "AUTO-SAVE:POLICE-STATIONS:" + psCd + ":LOGIN-IDS:" + loginId + ":MODULES:" + module;
 
         LinkedHashMap<String, Object> gridMeta = new LinkedHashMap<>();
-        gridMeta.put("srNo", srNo);
-        gridMeta.put("complainantName", request.getComplainantDraftName());
+        gridMeta.put("draftNum",srNo+"/"+LocalDateTime.now().getYear());
+        gridMeta.put("draftSrno", srNo);
         gridMeta.put("draftId", draftId);
-        gridMeta.put("timestamp", System.currentTimeMillis());
+        gridMeta.put("draftDateTime", LocalDateTime.now().toString());
 
         // Use your JSON template for the Metadata Map
         redisJsonTemplate.opsForHash().put(listKey, draftId, gridMeta);
@@ -168,7 +185,13 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
         String dataKey = "AUTO-SAVE:DRAFT-DATA:" + draftId + "_" + tag;
         redisJsonTemplate.opsForValue().set(dataKey, request.getJsonData());
 
-        return request;
+        AutosaveCreateResponse responseDto = new AutosaveCreateResponse();
+        responseDto.setMessage("New Draft Created Successfully");
+        responseDto.setDraftId(draftId);
+        responseDto.setDraftSrno(srNo.toString());
+        responseDto.setDraftDateTime(LocalDateTime.now());
+        responseDto.setDraftNum(srNo+"/"+LocalDateTime.now().getYear());
+        return responseDto;
     }
 
     /**
@@ -177,50 +200,43 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
      * @return AutosaveDomain
      */
     @Override
-    public AutosaveDomain persistAutosaveData(AutosaveDomain request) {
+    public UpdateResponseDto persistAutosaveData(AutosaveDomain request) {
 
-        String complainantName = request.getComplainantDraftName();
+            String psCd = request.getPsCd().toString();
+            String loginId = request.getLoginId();
+            String module = request.getModuleName();
+            String draftId = request.getDraftId();
 
-        if (complainantName != null && !complainantName.trim().isEmpty()) {
+            // 1. Reconstruct the keys (Tag is optional in Sentinel but kept for key consistency)
+            String tag = "{" + psCd + "}";
+            String listKey = "AUTO-SAVE:POLICE-STATIONS:" + psCd + ":LOGIN-IDS:" + loginId + ":MODULES:" + module;
+            String dataKey = "AUTO-SAVE:DRAFT-DATA:" + draftId + "_" + tag;
 
-            switch (request.getModuleName()) {
-                case Constants.COMPLAINANT -> autosaveRepository.updateComplaintSaveForm(complainantName, request.getSavedNum());
+            // 2. Update the Metadata Object in the Hash
+            // We fetch the existing map first to preserve the original serial number and creation date
+            LinkedHashMap<String, Object> gridMeta = (LinkedHashMap<String, Object>) redisJsonTemplate.opsForHash().get(listKey, draftId);
 
-                case Constants.FIR -> autosaveRepository.updateFirSaveForm(complainantName, request.getSavedNum());
+            if (gridMeta != null) {
+                // Update with dynamic fields from the request
+                gridMeta.put("complainantDraftName", request.getComplainantDraftName());
+                gridMeta.put("mlcType", request.getMlcType());
+                gridMeta.put("mlcSubType", request.getMlcSubType());
+                gridMeta.put("lastUpdated", LocalDateTime.now().toString());
 
-                case Constants.MISSING_PERSON -> autosaveRepository.updateMissingPersonSaveForm(complainantName, request.getSavedNum());
-
-                case Constants.NCR -> autosaveRepository.updateNcrSaveForm(complainantName, request.getSavedNum());
-
-                case Constants.UIFP -> autosaveRepository.updateUifpSaveForm(complainantName, request.getSavedNum());
-
-                case Constants.MLC -> autosaveRepository.updateMlcSaveForm(complainantName, request.getMlcType(), request.getMlcSubType(), request.getSavedNum());
-
-                case Constants.UIDB -> autosaveRepository.updateUidbSaveForm(complainantName, request.getSavedNum());
-
-                case Constants.ARREST_MEMO -> autosaveRepository.updateArrestSaveForm(complainantName, request.getSavedNum());
-
-                case Constants.STRANGER_ROLL -> autosaveRepository.updateStrangerRollSaveForm(complainantName,request.getSavedNum());
-
-                default -> log.info("The Module : {} Complainant Is Not Getting Updated ", request.getModuleName());
+                // Put the updated map back into the Hash (overwrites the old one for this draftId)
+                redisJsonTemplate.opsForHash().put(listKey, draftId, gridMeta);
             }
-        }
 
-        Integer shardNumber = getShard(request.getSavedNum());
-        String draftNumber = generateDraftNumber(request.getModuleName(), request.getSavedNum(), shardNumber);
-        String zsetKeyName = generateZSetNumber(shardNumber);
-        Long expireScore = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(zSetTtl);
+            //Update the Actual Heavy Draft Data (The JSON payload)
+            // .set() will overwrite the existing value at this key
+            redisJsonTemplate.opsForValue().set(dataKey, request.getJsonData());
 
-        redisJsonTemplate.opsForValue().set(draftNumber, request.getJsonData(), Duration.ofSeconds(failSafeTtl));
-        redisZSetTemplate.opsForZSet().add(zsetKeyName, draftNumber, expireScore);
-        log.info("Persisted The JSON in Redis Cache For Save Number : {}", request.getSavedNum());
-
-        AutosaveDomain response = new AutosaveDomain();
-        response.setDraftNumber(draftNumber);
-        response.setOpTime(LocalDateTime.now());
-        response.setModuleName(request.getModuleName());
-        response.setSavedNum(request.getSavedNum());
-        return response;
+            // 4. Prepare Response
+            UpdateResponseDto responseDto = new UpdateResponseDto();
+            responseDto.setMessage("Draft Updated Successfully");
+            responseDto.setDraftId(draftId);
+            responseDto.setDraftUpdateDateTime(LocalDateTime.now());
+            return responseDto;
     }
 
     /**
@@ -228,44 +244,85 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
      * @return
      */
     @Override
-    public AutosaveDomain fetchAutosaveData(AutosaveDomain request) {
-        log.info("HIT ON THE fetchAutosaveData() Method");
+    public GetFormDataResponse fetchAutosaveData(AutosaveDomain request) {
+        String psCd = request.getPsCd().toString();
+        String draftId = request.getDraftId();
+        String tag = "{" + psCd + "}";
+        String dataKey = "AUTO-SAVE:DRAFT-DATA:" + draftId + "_" + tag;
 
-        Integer shardNumber = getShard(request.getSavedNum());
-        String draftNumber = generateDraftNumber(request.getModuleName(), request.getSavedNum(), shardNumber);
-        String zsetKeyName = generateZSetNumber(shardNumber);
+        //Fetch the raw data from Redis
+        Object rawData = redisJsonTemplate.opsForValue().get(dataKey);
 
-        LinkedHashMap<String, Object> jsonData = redisJsonTemplate.opsForValue().get(draftNumber);
-
-
-        if (jsonData != null) {
-            //If data exists in the Redis cluster : Update the score and Json data
-            //Update the redis key expiry : Since it is required
-            log.info("The JSON Data For The Saved Num : {} Already Exists In Redis ", request.getSavedNum());
-            long expireScore = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(zSetTtl);
-
-            redisJsonTemplate.opsForValue().set(draftNumber, jsonData, Duration.ofSeconds(failSafeTtl));
-            redisZSetTemplate.opsForZSet().add(zsetKeyName, draftNumber, expireScore);
-
-            AutosaveDomain response = new AutosaveDomain();
-            response.setJsonData(jsonData);
-            response.setModuleName(request.getModuleName());
-            response.setSavedNum(request.getSavedNum());
-            return response;
-        } else {
-            //If data is not in the Redis : Fetch Data from AWS S3 and then populate the redis as well as give it to front end :
-            log.info("The JSON Data For The Saved Num : {} Does Not Exists In Redis ", request.getSavedNum());
-            request.setDraftNumber(draftNumber);
-            AutosaveDomain response = microserviceComms.fetchJsonDataFromS3(request);
-            if (response != null && !response.getJsonData().isEmpty()) {
-
-                Long expireScore = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(zSetTtl);
-                redisJsonTemplate.opsForValue().set(draftNumber, response.getJsonData(), Duration.ofSeconds(failSafeTtl));
-                redisZSetTemplate.opsForZSet().add(zsetKeyName, draftNumber, expireScore);
-                return response;
-            } else {
-                throw new NoAutoSaveDataFoundException("No Autosave Data Found For The Entry : " + request.getSavedNum().toString());
-            }
+        //Convert to LinkedHashMap
+        LinkedHashMap<String, Object> structuredJsonData = null;
+        if (rawData != null) {
+            // This converts the Object (even if it's a JSON String) into a LinkedHashMap
+            structuredJsonData = objectMapper.convertValue(rawData, new TypeReference<LinkedHashMap<String, Object>>() {
+            });
         }
+
+        //Prepare the standardized response
+        GetFormDataResponse response = new GetFormDataResponse();
+        response.setDraftId(draftId);
+        response.setJsonData(structuredJsonData);
+        return response;
+    }
+
+    @Override
+    public AutosaveDraftListResponse fetchAutosaveDraftList(AutosaveDomain request) {
+
+            String psCd = request.getPsCd().toString();
+            String loginId = request.getLoginId();
+            String module = request.getModuleName();
+
+            //Reconstruct the List Key
+            String listKey = "AUTO-SAVE:POLICE-STATIONS:" + psCd + ":LOGIN-IDS:" + loginId + ":MODULES:" + module;
+
+            //Fetch all metadata entries from the Hash (Map<DraftId, MetadataMap>)
+            Map<Object, Object> allDraftsMap = redisJsonTemplate.opsForHash().entries(listKey);
+
+            //Convert and Sort by Date (Latest First)
+            List<LinkedHashMap<String, Object>> sortedDraftList = allDraftsMap.values().stream()
+                    .map(obj -> objectMapper.convertValue(obj, new TypeReference<LinkedHashMap<String, Object>>() {}))
+                    .sorted((m1, m2) -> {
+                        // Ensure the date is parsed correctly for comparison
+                        LocalDateTime d1 = LocalDateTime.parse(m1.get("draftDateTime").toString());
+                        LocalDateTime d2 = LocalDateTime.parse(m2.get("draftDateTime").toString());
+                        return d2.compareTo(d1);
+                    })
+                    .collect(Collectors.toList());
+
+            //Build the Structured Response
+        AutosaveDraftListResponse response = new AutosaveDraftListResponse();
+        response.setDraftList(sortedDraftList);
+            return response;
+    }
+
+    @Override
+    public AutosaveDeleteResponse deleteAutosaveDraftList(AutosaveDomain request) {
+        String psCd = request.getPsCd().toString();
+        String loginId = request.getLoginId();
+        String module = request.getModuleName();
+        String draftId = request.getDraftId();
+
+        //Reconstruct the Keys
+        String tag = "{" + psCd + "}";
+        String listKey = "AUTO-SAVE:POLICE-STATIONS:" + psCd + ":LOGIN-IDS:" + loginId + ":MODULES:" + module;
+        String dataKey = "AUTO-SAVE:DRAFT-DATA:" + draftId + "_" + tag;
+
+        //Remove the specific draft from the Module's Hash List
+        Long hashRemoved = redisJsonTemplate.opsForHash().delete(listKey, draftId);
+        //Remove the actual heavy JSON payload string
+        Boolean dataRemoved = redisJsonTemplate.delete(dataKey);
+        //Prepare Standardized Response
+        AutosaveDeleteResponse response = new AutosaveDeleteResponse();
+        if (hashRemoved > 0 || (dataRemoved != null && dataRemoved)) {
+            response.setMessage("Draft deleted successfully");
+            response.setDraftId(draftId);
+        } else {
+            response.setMessage("Draft not found or already deleted");
+            response.setDraftId(draftId);
+        }
+        return response;
     }
 }

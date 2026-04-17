@@ -23,9 +23,10 @@ import java.util.LinkedHashMap;
 public class DefaultConfig {
 
     @Bean
-    public AutosaveUseCaseImpl autosaveUseCase(RedisTemplate<String,LinkedHashMap<String,Object>> redisJsonTemplate,
-                                               RedisTemplate<String,String> redisZSetTemplate, MicroserviceComms microserviceComms, AutosaveRepository autosaveRepository){
-        return new AutosaveUseCaseImpl(redisJsonTemplate,redisZSetTemplate,microserviceComms,autosaveRepository);
+    public AutosaveUseCaseImpl autosaveUseCase(RedisTemplate<String, LinkedHashMap<String, Object>> redisJsonTemplate,
+                                               RedisTemplate<String, String> redisZSetTemplate, MicroserviceComms microserviceComms, AutosaveRepository autosaveRepository,
+                                               ObjectMapper objectMapper) {
+        return new AutosaveUseCaseImpl(redisJsonTemplate, redisZSetTemplate, microserviceComms, autosaveRepository, objectMapper);
     }
 
 
