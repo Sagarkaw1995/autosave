@@ -1,9 +1,10 @@
 package com.cctns.autosave.producer.service.external.adapter;
 
+import org.springframework.stereotype.Component;
+
 import com.cctns.autosave.producer.service.core.domain.AutosaveDomain;
 import com.cctns.autosave.producer.service.core.external.port.MicroserviceComms;
 import com.cctns.autosave.producer.service.web.dto.response.ApiResponse;
-import org.springframework.stereotype.Component;
 
 @Component
 public class MicroserviceCommsImpl implements MicroserviceComms {

@@ -1,7 +1,11 @@
 package com.cctns.autosave.producer.service.persistence.entity;
 
+import java.io.Serializable;
+import java.time.LocalDateTime;
+
 import com.cctns.autosave.producer.service.constants.Constants;
 import com.fasterxml.jackson.annotation.JsonFormat;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -12,9 +16,6 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-
-import java.io.Serializable;
-import java.time.LocalDateTime;
 
 @Getter
 @Setter

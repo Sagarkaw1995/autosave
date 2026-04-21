@@ -1,13 +1,13 @@
 package com.cctns.autosave.producer.service.core.domain;
 
+import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
+import java.util.List;
+
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-
-import java.time.LocalDateTime;
-import java.util.LinkedHashMap;
-import java.util.List;
 
 @Getter
 @Setter

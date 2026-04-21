@@ -1,11 +1,11 @@
 package com.cctns.autosave.producer.service.core.domain;
 
+import java.util.LinkedHashMap;
+
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-
-import java.util.LinkedHashMap;
 
 @Getter
 @Setter

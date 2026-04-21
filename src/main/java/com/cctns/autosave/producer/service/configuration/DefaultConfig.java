@@ -1,5 +1,13 @@
 package com.cctns.autosave.producer.service.configuration;
 
+import java.io.IOException;
+import java.util.LinkedHashMap;
+
+import org.springframework.boot.autoconfigure.jackson.Jackson2ObjectMapperBuilderCustomizer;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.core.RedisTemplate;
+
 import com.cctns.autosave.producer.service.core.external.port.MicroserviceComms;
 import com.cctns.autosave.producer.service.core.repository.AutosaveRepository;
 import com.cctns.autosave.producer.service.core.usecase.AutosaveUseCaseImpl;
@@ -12,12 +20,6 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import org.springframework.boot.autoconfigure.jackson.Jackson2ObjectMapperBuilderCustomizer;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.data.redis.core.RedisTemplate;
-import java.io.IOException;
-import java.util.LinkedHashMap;
 
 @Configuration
 public class DefaultConfig {
