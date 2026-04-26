@@ -10,8 +10,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.cctns.autosave.producer.service.constants.Constants;
 import com.cctns.autosave.producer.service.core.domain.AutosaveDomain;
+import com.cctns.autosave.producer.service.core.domain.PageDomain;
 import com.cctns.autosave.producer.service.core.usecase.AutosaveUseCase;
 import com.cctns.autosave.producer.service.web.dto.request.AutosaveCreateRequest;
+import com.cctns.autosave.producer.service.web.dto.request.AutosaveDraftListRequestDto;
 import com.cctns.autosave.producer.service.web.dto.request.AutosaveGetRequestDto;
 import com.cctns.autosave.producer.service.web.dto.request.AutosaveRequestDto;
 import com.cctns.autosave.producer.service.web.dto.response.ApiResponse;
@@ -22,6 +24,9 @@ import com.cctns.autosave.producer.service.web.dto.response.GetFormDataResponse;
 import com.cctns.autosave.producer.service.web.dto.response.UpdateResponseDto;
 
 import jakarta.validation.Valid;
+
+import java.util.LinkedHashMap;
+import java.util.List;
 
 /**
  * Controller for the autosave service
@@ -95,8 +100,8 @@ private final AutosaveUseCase autosaveUseCase;
      * @return
      */
     @PostMapping("get-draft-list")
-    public ResponseEntity<?> fetchAutosaveDraftList(@Valid @RequestBody AutosaveCreateRequest request) {
-        AutosaveDraftListResponse response = autosaveUseCase.fetchAutosaveDraftList(modelMapper.map(request, AutosaveDomain.class));
+    public ResponseEntity<?> fetchAutosaveDraftList(@Valid @RequestBody AutosaveDraftListRequestDto request) {
+        PageDomain<List<LinkedHashMap<String, Object>>> response = autosaveUseCase.fetchAutosaveDraftList(modelMapper.map(request, AutosaveDomain.class));
         ApiResponse<?> apiResponse = ApiResponse.builder()
                 .statusCode(HttpStatus.OK.value())
                 .status(HttpStatus.OK.name())

@@ -3,6 +3,7 @@ package com.cctns.autosave.producer.service.configuration;
 import java.io.IOException;
 import java.util.LinkedHashMap;
 
+import com.cctns.autosave.producer.service.core.usecase.AutosaveUseCaseImpl;
 import org.springframework.boot.autoconfigure.jackson.Jackson2ObjectMapperBuilderCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -10,7 +11,6 @@ import org.springframework.data.redis.core.RedisTemplate;
 
 import com.cctns.autosave.producer.service.core.external.port.MicroserviceComms;
 import com.cctns.autosave.producer.service.core.repository.AutosaveRepository;
-import com.cctns.autosave.producer.service.core.usecase.AutosaveUseCaseImpl;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.DeserializationFeature;

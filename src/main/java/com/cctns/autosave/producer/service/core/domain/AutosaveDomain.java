@@ -9,6 +9,10 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
+import java.util.List;
+
 @Getter
 @Setter
 @AllArgsConstructor
@@ -46,4 +50,8 @@ public class AutosaveDomain {
     //Other fields :
     private String draftNumber;
     private LocalDateTime opTime;
+
+
+    //Pagination
+    private PageableDomain pageable;
 }

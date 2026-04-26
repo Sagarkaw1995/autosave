@@ -1,34 +1,42 @@
 package com.cctns.autosave.producer.service.core.usecase;
 
-import java.time.LocalDateTime;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.redis.core.RedisTemplate;
-
 import com.cctns.autosave.producer.service.constants.Constants;
 import com.cctns.autosave.producer.service.core.domain.AutosaveDomain;
 import com.cctns.autosave.producer.service.core.domain.DraftNumberDomain;
+import com.cctns.autosave.producer.service.core.domain.PageDomain;
+import com.cctns.autosave.producer.service.core.exception.DraftIdNotFoundException;
 import com.cctns.autosave.producer.service.core.exception.InvalidDraftNumberFormat;
+import com.cctns.autosave.producer.service.core.exception.NoAutoSaveDataFoundException;
 import com.cctns.autosave.producer.service.core.exception.SaveNumCannotBeNullException;
 import com.cctns.autosave.producer.service.core.external.port.MicroserviceComms;
 import com.cctns.autosave.producer.service.core.repository.AutosaveRepository;
 import com.cctns.autosave.producer.service.web.dto.response.AutosaveCreateResponse;
 import com.cctns.autosave.producer.service.web.dto.response.AutosaveDeleteResponse;
 import com.cctns.autosave.producer.service.web.dto.response.AutosaveDraftListResponse;
+import com.cctns.autosave.producer.service.web.dto.response.AutosaveResponseDto;
 import com.cctns.autosave.producer.service.web.dto.response.GetFormDataResponse;
 import com.cctns.autosave.producer.service.web.dto.response.UpdateResponseDto;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 @Slf4j
 public class AutosaveUseCaseImpl implements AutosaveUseCase{
@@ -189,6 +197,13 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
         return responseDto;
     }
 
+    private void validateDraftExists(String listKey, String draftId) {
+        Boolean exists = redisJsonTemplate.opsForHash().hasKey(listKey, draftId);
+        if (Boolean.FALSE.equals(exists)) {
+            throw new DraftIdNotFoundException("Draft Id Not Found");
+        }
+    }
+
     /**
      * Persists the autosave data
      * @param request (AutosaveDomain)
@@ -206,6 +221,8 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
             String tag = "{" + psCd + "}";
             String listKey = "AUTO-SAVE:POLICE-STATIONS:" + psCd + ":LOGIN-IDS:" + loginId + ":MODULES:" + module;
             String dataKey = "AUTO-SAVE:DRAFT-DATA:" + draftId + "_" + tag;
+
+              validateDraftExists( listKey,  draftId);
 
             // 2. Update the Metadata Object in the Hash
             // We fetch the existing map first to preserve the original serial number and creation date
@@ -254,43 +271,68 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
             // This converts the Object (even if it's a JSON String) into a LinkedHashMap
             structuredJsonData = objectMapper.convertValue(rawData, new TypeReference<LinkedHashMap<String, Object>>() {
             });
-        }
 
-        //Prepare the standardized response
-        GetFormDataResponse response = new GetFormDataResponse();
-        response.setDraftId(draftId);
-        response.setJsonData(structuredJsonData);
-        return response;
+            //Prepare the standardized response
+            GetFormDataResponse response = new GetFormDataResponse();
+            response.setDraftId(draftId);
+            response.setJsonData(structuredJsonData);
+            return response;
+        }
+        else{
+            throw new NoAutoSaveDataFoundException("No Data Exists For Given Draft Id");
+        }
     }
 
     @Override
-    public AutosaveDraftListResponse fetchAutosaveDraftList(AutosaveDomain request) {
+    public PageDomain<List<LinkedHashMap<String, Object>>> fetchAutosaveDraftList(AutosaveDomain request) {
 
-            String psCd = request.getPsCd().toString();
-            String loginId = request.getLoginId();
-            String module = request.getModuleName();
+        //Extract pagination parameters with defaults
+        int pageNo = (request.getPageable().getPage() != null && request.getPageable().getPage() > 0) ? request.getPageable().getPage() : 1;
+        int pageSize = (request.getPageable().getPageSize() != null && request.getPageable().getPageSize() > 0) ? request.getPageable().getPageSize() : 10;
 
-            //Reconstruct the List Key
-            String listKey = "AUTO-SAVE:POLICE-STATIONS:" + psCd + ":LOGIN-IDS:" + loginId + ":MODULES:" + module;
+        String psCd = request.getPsCd().toString();
+        String loginId = request.getLoginId();
+        String module = request.getModuleName();
 
-            //Fetch all metadata entries from the Hash (Map<DraftId, MetadataMap>)
-            Map<Object, Object> allDraftsMap = redisJsonTemplate.opsForHash().entries(listKey);
+        String listKey = "AUTO-SAVE:POLICE-STATIONS:" + psCd + ":LOGIN-IDS:" + loginId + ":MODULES:" + module;
 
-            //Convert and Sort by Date (Latest First)
-            List<LinkedHashMap<String, Object>> sortedDraftList = allDraftsMap.values().stream()
-                    .map(obj -> objectMapper.convertValue(obj, new TypeReference<LinkedHashMap<String, Object>>() {}))
-                    .sorted((m1, m2) -> {
-                        // Ensure the date is parsed correctly for comparison
-                        LocalDateTime d1 = LocalDateTime.parse(m1.get("draftDateTime").toString());
-                        LocalDateTime d2 = LocalDateTime.parse(m2.get("draftDateTime").toString());
-                        return d2.compareTo(d1);
-                    })
-                    .collect(Collectors.toList());
+        //Fetch all entries from the Hash
+        Map<Object, Object> allDraftsMap = redisJsonTemplate.opsForHash().entries(listKey);
 
-            //Build the Structured Response
-        AutosaveDraftListResponse response = new AutosaveDraftListResponse();
-        response.setDraftList(sortedDraftList);
-            return response;
+        if (allDraftsMap.isEmpty()) {
+            return PageDomain.<List<LinkedHashMap<String, Object>>>builder()
+                    .list(Collections.emptyList())
+                    .totalSize(0L)
+                    .pageCount(0)
+                    .build();
+        }
+
+        //Map, Sort, and Slicing (Pagination)
+        List<LinkedHashMap<String, Object>> sortedDraftList = allDraftsMap.values().stream()
+                .map(obj -> objectMapper.convertValue(obj, new TypeReference<LinkedHashMap<String, Object>>() {}))
+                .sorted((m1, m2) -> {
+                    LocalDateTime d1 = LocalDateTime.parse(m1.get("draftDateTime").toString());
+                    LocalDateTime d2 = LocalDateTime.parse(m2.get("draftDateTime").toString());
+                    return d2.compareTo(d1); // Descending (Latest First)
+                })
+                .collect(Collectors.toList());
+
+        //Calculate total size and total pages
+        long totalSize = sortedDraftList.size();
+        int pageCount = (int) Math.ceil((double) totalSize / pageSize);
+
+        //Slice the list for the current page
+        List<LinkedHashMap<String, Object>> paginatedList = sortedDraftList.stream()
+                .skip((long) (pageNo - 1) * pageSize)
+                .limit(pageSize)
+                .collect(Collectors.toList());
+
+        //Response
+        return PageDomain.<List<LinkedHashMap<String, Object>>>builder()
+                .list(paginatedList)
+                .totalSize(totalSize)
+                .pageCount(pageCount)
+                .build();
     }
 
     @Override
@@ -304,6 +346,8 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
         String tag = "{" + psCd + "}";
         String listKey = "AUTO-SAVE:POLICE-STATIONS:" + psCd + ":LOGIN-IDS:" + loginId + ":MODULES:" + module;
         String dataKey = "AUTO-SAVE:DRAFT-DATA:" + draftId + "_" + tag;
+
+        validateDraftExists( listKey,  draftId);
 
         //Remove the specific draft from the Module's Hash List
         Long hashRemoved = redisJsonTemplate.opsForHash().delete(listKey, draftId);
