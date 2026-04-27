@@ -303,7 +303,7 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
             return PageDomain.<List<LinkedHashMap<String, Object>>>builder()
                     .list(Collections.emptyList())
                     .totalSize(0L)
-                    .pageCount(0)
+                    .pageCount(0L)
                     .build();
         }
 
@@ -319,7 +319,7 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
 
         //Calculate total size and total pages
         long totalSize = sortedDraftList.size();
-        int pageCount = (int) Math.ceil((double) totalSize / pageSize);
+        long pageCount = (int) Math.ceil((double) totalSize / pageSize);
 
         //Slice the list for the current page
         List<LinkedHashMap<String, Object>> paginatedList = sortedDraftList.stream()

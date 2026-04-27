@@ -12,5 +12,5 @@ import lombok.ToString;
 public class PageDomain<T>{
     T list;
     Long totalSize;
-    Integer pageCount;
+    Long pageCount;
 }
