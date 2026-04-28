@@ -267,7 +267,9 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
 
         //Fetch the raw data from Redis
         Object rawData = redisJsonTemplate.opsForValue().get(dataKey);
-
+        if(!redisJsonTemplate.hasKey(dataKey)){
+            throw new NoAutoSaveDataFoundException("No Data Exists For Given Draft Id");
+        }
         //Convert to LinkedHashMap
         LinkedHashMap<String, Object> structuredJsonData = null;
         if (rawData != null) {
@@ -275,15 +277,13 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
             structuredJsonData = objectMapper.convertValue(rawData, new TypeReference<LinkedHashMap<String, Object>>() {
             });
 
+        }
+
             //Prepare the standardized response
             GetFormDataResponse response = new GetFormDataResponse();
             response.setDraftId(draftId);
             response.setJsonData(structuredJsonData);
             return response;
-        }
-        else{
-            throw new NoAutoSaveDataFoundException("No Data Exists For Given Draft Id");
-        }
     }
 
     private void formatField(Map<String, Object> map, String fieldName) {
