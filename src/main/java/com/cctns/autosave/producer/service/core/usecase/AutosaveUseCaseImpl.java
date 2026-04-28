@@ -27,6 +27,7 @@ import org.springframework.http.ResponseEntity;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -56,6 +57,8 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
     private final MicroserviceComms microserviceComms;
     private final AutosaveRepository autosaveRepository;
     private final ObjectMapper objectMapper;
+    private static final DateTimeFormatter FORMATTER =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SS");
 
     public AutosaveUseCaseImpl(RedisTemplate<String,LinkedHashMap<String,Object>> redisJsonTemplate, RedisTemplate<String, String> redisZSetTemplate, MicroserviceComms microserviceComms, AutosaveRepository autosaveRepository, ObjectMapper objectMapper) {
         this.redisJsonTemplate = redisJsonTemplate;
@@ -179,7 +182,7 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
         gridMeta.put("draftNum",srNo+"/"+LocalDateTime.now().getYear());
         gridMeta.put("draftSrno", srNo);
         gridMeta.put("draftId", draftId);
-        gridMeta.put("draftDateTime", LocalDateTime.now().toString());
+        gridMeta.put("draftDateTime", LocalDateTime.now().format(FORMATTER));
 
         // Use your JSON template for the Metadata Map
         redisJsonTemplate.opsForHash().put(listKey, draftId, gridMeta);
@@ -233,7 +236,7 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
                 gridMeta.put("complainantDraftName", request.getComplainantDraftName());
                 gridMeta.put("mlcType", request.getMlcType());
                 gridMeta.put("mlcSubType", request.getMlcSubType());
-                gridMeta.put("lastUpdated", LocalDateTime.now().toString());
+                gridMeta.put("lastUpdated", LocalDateTime.now().format(FORMATTER));
 
                 // Put the updated map back into the Hash (overwrites the old one for this draftId)
                 redisJsonTemplate.opsForHash().put(listKey, draftId, gridMeta);
@@ -283,6 +286,24 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
         }
     }
 
+    private void formatField(Map<String, Object> map, String fieldName) {
+        Object val = map.get(fieldName);
+        if (val != null) {
+            try {
+                // LocalDateTime.parse is flexible; it handles the long nanoseconds
+                // and the short .86 versions automatically.
+                LocalDateTime parsedDate = (val instanceof LocalDateTime)
+                        ? (LocalDateTime) val
+                        : LocalDateTime.parse(val.toString());
+
+                // Forces it into your yyyy-MM-dd'T'HH:mm:ss.SSS format
+                map.put(fieldName, parsedDate.format(FORMATTER));
+            } catch (Exception e) {
+                log.warn("Could not format field {}: {}", fieldName, val);
+            }
+        }
+    }
+
     @Override
     public PageDomain<List<LinkedHashMap<String, Object>>> fetchAutosaveDraftList(AutosaveDomain request) {
 
@@ -309,11 +330,26 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
 
         //Map, Sort, and Slicing (Pagination)
         List<LinkedHashMap<String, Object>> sortedDraftList = allDraftsMap.values().stream()
-                .map(obj -> objectMapper.convertValue(obj, new TypeReference<LinkedHashMap<String, Object>>() {}))
+                .map(obj -> {
+                    // 1. Convert to Map
+                    LinkedHashMap<String, Object> map = objectMapper.convertValue(obj,
+                            new TypeReference<LinkedHashMap<String, Object>>() {});
+
+                    // 2. Format draftDateTime (Always present)
+                    formatField(map, "draftDateTime");
+
+                    // 3. Format lastUpdated (Optional - only formats if present)
+                    if (map.containsKey("lastUpdated") && map.get("lastUpdated") != null) {
+                        formatField(map, "lastUpdated");
+                    }
+
+                    return map;
+                })
                 .sorted((m1, m2) -> {
+                    // Use standard ISO parse for sorting (it handles both long and short strings)
                     LocalDateTime d1 = LocalDateTime.parse(m1.get("draftDateTime").toString());
                     LocalDateTime d2 = LocalDateTime.parse(m2.get("draftDateTime").toString());
-                    return d2.compareTo(d1); // Descending (Latest First)
+                    return d2.compareTo(d1);
                 })
                 .collect(Collectors.toList());
 
