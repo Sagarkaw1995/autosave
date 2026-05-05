@@ -14,5 +14,6 @@ import lombok.Setter;
 public class GetFormDataResponse {
 
     private String draftId;
+    private String draftNum;
     private LinkedHashMap<String, Object> jsonData;
 }

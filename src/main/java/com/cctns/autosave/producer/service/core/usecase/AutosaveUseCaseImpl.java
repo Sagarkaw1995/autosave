@@ -187,9 +187,15 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
         // Use your JSON template for the Metadata Map
         redisJsonTemplate.opsForHash().put(listKey, draftId, gridMeta);
 
-        // 4. Actual Heavy Draft Data (String) - The "Big Payload"
+        //Added hybrid Data-Wrapper for draftNum and other fields :
+        LinkedHashMap<String, Object> dataWrapper = new LinkedHashMap<>();
+        dataWrapper.put("draftNum", srNo+"/"+LocalDateTime.now().getYear()); // <--- Persisted here too!
+        dataWrapper.put("jsonData", request.getJsonData());
+
+
+        // Actual Heavy Draft Data (String) - The "Big Payload"
         String dataKey = "AUTO-SAVE:DRAFT-DATA:" + draftId + "_" + tag;
-        redisJsonTemplate.opsForValue().set(dataKey, request.getJsonData());
+        redisJsonTemplate.opsForValue().set(dataKey, dataWrapper);
 
         AutosaveCreateResponse responseDto = new AutosaveCreateResponse();
         responseDto.setMessage("New Draft Created Successfully");
@@ -214,44 +220,42 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
      */
     @Override
     public UpdateResponseDto persistAutosaveData(AutosaveDomain request) {
+        String psCd = request.getPsCd().toString();
+        String loginId = request.getLoginId();
+        String module = request.getModuleName();
+        String draftId = request.getDraftId();
 
-            String psCd = request.getPsCd().toString();
-            String loginId = request.getLoginId();
-            String module = request.getModuleName();
-            String draftId = request.getDraftId();
+        String tag = "{" + psCd + "}";
+        String listKey = "AUTO-SAVE:POLICE-STATIONS:" + psCd + ":LOGIN-IDS:" + loginId + ":MODULES:" + module;
+        String dataKey = "AUTO-SAVE:DRAFT-DATA:" + draftId + "_" + tag;
 
-            // 1. Reconstruct the keys (Tag is optional in Sentinel but kept for key consistency)
-            String tag = "{" + psCd + "}";
-            String listKey = "AUTO-SAVE:POLICE-STATIONS:" + psCd + ":LOGIN-IDS:" + loginId + ":MODULES:" + module;
-            String dataKey = "AUTO-SAVE:DRAFT-DATA:" + draftId + "_" + tag;
+        validateDraftExists(listKey, draftId);
 
-              validateDraftExists( listKey,  draftId);
+        // 1. Fetch existing Metadata to get the original draftNum
+        LinkedHashMap<String, Object> gridMeta = (LinkedHashMap<String, Object>) redisJsonTemplate.opsForHash().get(listKey, draftId);
 
-            // 2. Update the Metadata Object in the Hash
-            // We fetch the existing map first to preserve the original serial number and creation date
-            LinkedHashMap<String, Object> gridMeta = (LinkedHashMap<String, Object>) redisJsonTemplate.opsForHash().get(listKey, draftId);
+        if (gridMeta != null) {
+            gridMeta.put("complainantDraftName", request.getComplainantDraftName());
+            gridMeta.put("mlcType", request.getMlcType());
+            gridMeta.put("mlcSubType", request.getMlcSubType());
+            gridMeta.put("lastUpdated", LocalDateTime.now().format(FORMATTER));
 
-            if (gridMeta != null) {
-                // Update with dynamic fields from the request
-                gridMeta.put("complainantDraftName", request.getComplainantDraftName());
-                gridMeta.put("mlcType", request.getMlcType());
-                gridMeta.put("mlcSubType", request.getMlcSubType());
-                gridMeta.put("lastUpdated", LocalDateTime.now().format(FORMATTER));
+            redisJsonTemplate.opsForHash().put(listKey, draftId, gridMeta);
 
-                // Put the updated map back into the Hash (overwrites the old one for this draftId)
-                redisJsonTemplate.opsForHash().put(listKey, draftId, gridMeta);
-            }
+            // 2. RE-WRAP the data: Keep the original draftNum, update the jsonData
+            LinkedHashMap<String, Object> dataWrapper = new LinkedHashMap<>();
+            dataWrapper.put("draftNum", gridMeta.get("draftNum")); // Preserve original number
+            dataWrapper.put("jsonData", request.getJsonData());
 
-            //Update the Actual Heavy Draft Data (The JSON payload)
-            // .set() will overwrite the existing value at this key
-            redisJsonTemplate.opsForValue().set(dataKey, request.getJsonData());
+            // 3. Save the wrapper back to Redis
+            redisJsonTemplate.opsForValue().set(dataKey, dataWrapper);
+        }
 
-            // 4. Prepare Response
-            UpdateResponseDto responseDto = new UpdateResponseDto();
-            responseDto.setMessage("Draft Updated Successfully");
-            responseDto.setDraftId(draftId);
-            responseDto.setDraftUpdateDateTime(LocalDateTime.now());
-            return responseDto;
+        UpdateResponseDto responseDto = new UpdateResponseDto();
+        responseDto.setMessage("Draft Updated Successfully");
+        responseDto.setDraftId(draftId);
+        responseDto.setDraftUpdateDateTime(LocalDateTime.now());
+        return responseDto;
     }
 
     /**
@@ -265,25 +269,30 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
         String tag = "{" + psCd + "}";
         String dataKey = "AUTO-SAVE:DRAFT-DATA:" + draftId + "_" + tag;
 
-        //Fetch the raw data from Redis
-        Object rawData = redisJsonTemplate.opsForValue().get(dataKey);
-        if(!redisJsonTemplate.hasKey(dataKey)){
+        // 1. Fetch the Wrapper Object
+        Object rawWrapper = redisJsonTemplate.opsForValue().get(dataKey);
+
+        if (rawWrapper == null) {
             throw new NoAutoSaveDataFoundException("No Data Exists For Given Draft Id");
         }
-        //Convert to LinkedHashMap
-        LinkedHashMap<String, Object> structuredJsonData = null;
-        if (rawData != null) {
-            // This converts the Object (even if it's a JSON String) into a LinkedHashMap
-            structuredJsonData = objectMapper.convertValue(rawData, new TypeReference<LinkedHashMap<String, Object>>() {
-            });
 
-        }
+        // 2. Convert raw data to a Map to access the internal fields
+        Map<String, Object> wrapperMap = objectMapper.convertValue(rawWrapper,
+                new TypeReference<Map<String, Object>>() {});
 
-            //Prepare the standardized response
-            GetFormDataResponse response = new GetFormDataResponse();
-            response.setDraftId(draftId);
-            response.setJsonData(structuredJsonData);
-            return response;
+        // 3. Extract parts
+        String draftNum = (String) wrapperMap.get("draftNum");
+        Object rawJsonData = wrapperMap.get("jsonData");
+
+        // 4. Convert internal jsonData to LinkedHashMap
+        LinkedHashMap<String, Object> structuredJsonData = objectMapper.convertValue(rawJsonData,
+                new TypeReference<LinkedHashMap<String, Object>>() {});
+
+        GetFormDataResponse response = new GetFormDataResponse();
+        response.setDraftId(draftId);
+        response.setDraftNum(draftNum); // Now returning the number stored in the wrapper
+        response.setJsonData(structuredJsonData);
+        return response;
     }
 
     private void formatField(Map<String, Object> map, String fieldName) {
