@@ -154,7 +154,7 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
      */
     @Override
     public AutosaveCreateResponse sentinelPersist(AutosaveDomain request){
-        String psCd = request.getPsCd().toString();
+        String psCd = request.getOfficeCd().toString();
         String loginId = request.getLoginId();
         String module = request.getModuleName();
 
@@ -220,7 +220,7 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
      */
     @Override
     public UpdateResponseDto persistAutosaveData(AutosaveDomain request) {
-        String psCd = request.getPsCd().toString();
+        String psCd = request.getOfficeCd().toString();
         String loginId = request.getLoginId();
         String module = request.getModuleName();
         String draftId = request.getDraftId();
@@ -264,7 +264,7 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
      */
     @Override
     public GetFormDataResponse fetchAutosaveData(AutosaveDomain request) {
-        String psCd = request.getPsCd().toString();
+        String psCd = request.getOfficeCd().toString();
         String draftId = request.getDraftId();
         String tag = "{" + psCd + "}";
         String dataKey = "AUTO-SAVE:DRAFT-DATA:" + draftId + "_" + tag;
@@ -320,7 +320,7 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
         int pageNo = (request.getPageable().getPage() != null && request.getPageable().getPage() > 0) ? request.getPageable().getPage() : 1;
         int pageSize = (request.getPageable().getPageSize() != null && request.getPageable().getPageSize() > 0) ? request.getPageable().getPageSize() : 10;
 
-        String psCd = request.getPsCd().toString();
+        String psCd = request.getOfficeCd().toString();
         String loginId = request.getLoginId();
         String module = request.getModuleName();
 
@@ -382,7 +382,7 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
 
     @Override
     public AutosaveDeleteResponse deleteAutosaveDraftList(AutosaveDomain request) {
-        String psCd = request.getPsCd().toString();
+        String psCd = request.getOfficeCd().toString();
         String loginId = request.getLoginId();
         String module = request.getModuleName();
         String draftId = request.getDraftId();

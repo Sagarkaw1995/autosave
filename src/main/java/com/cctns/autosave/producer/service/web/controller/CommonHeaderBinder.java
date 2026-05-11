@@ -1,30 +1,31 @@
 package com.cctns.autosave.producer.service.web.controller;
 
-
-import java.lang.reflect.Type;
-import java.util.Set;
-
+import com.cctns.autosave.producer.service.constants.Constants;
+import com.cctns.autosave.producer.service.core.exception.InvalidHeaderException;
+import com.cctns.autosave.producer.service.web.dto.request.CommonParamsDTO;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.Validator;
 import org.springframework.core.MethodParameter;
 import org.springframework.http.HttpInputMessage;
 import org.springframework.http.converter.HttpMessageConverter;
+import org.springframework.lang.NonNull;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.web.servlet.mvc.method.annotation.RequestBodyAdviceAdapter;
 
-import com.cctns.autosave.producer.service.core.exception.InvalidHeaderException;
-import com.cctns.autosave.producer.service.web.dto.request.CommonParamsDTO;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.validation.ConstraintViolation;
-import jakarta.validation.ConstraintViolationException;
-import jakarta.validation.Validator;
+import java.lang.reflect.Type;
+import java.util.Optional;
+import java.util.Set;
 
 @ControllerAdvice
+@Validated
 public class CommonHeaderBinder extends RequestBodyAdviceAdapter {
-
     private final ObjectMapper objectMapper;
     private final Validator validator;
 
@@ -34,41 +35,44 @@ public class CommonHeaderBinder extends RequestBodyAdviceAdapter {
     }
 
     @Override
-    public boolean supports(MethodParameter methodParameter,
-                            Type targetType,
-                            Class<? extends HttpMessageConverter<?>> converterType) {
+    public boolean supports(@NonNull MethodParameter methodParameter,
+                            @NonNull Type targetType,
+                            @NonNull Class<? extends HttpMessageConverter<?>> converterType) {
 
         return CommonParamsDTO.class.isAssignableFrom((Class<?>) targetType);
     }
 
+    @NonNull
     @Override
-    public Object afterBodyRead(Object body,
-                                HttpInputMessage inputMessage,
-                                MethodParameter parameter,
-                                Type targetType,
-                                Class<? extends HttpMessageConverter<?>> converterType) {
+    public Object afterBodyRead(@NonNull Object body,
+                                @NonNull HttpInputMessage inputMessage,
+                                @NonNull MethodParameter parameter,
+                                @NonNull Type targetType,
+                                @NonNull Class<? extends HttpMessageConverter<?>> converterType) {
 
         if (!(body instanceof CommonParamsDTO base)) {
             return body;
         }
 
+
         HttpServletRequest request =
-                ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes())
-                        .getRequest();
+                Optional.ofNullable(RequestContextHolder.getRequestAttributes())
+                        .filter(ServletRequestAttributes.class::isInstance)
+                        .map(ServletRequestAttributes.class::cast)
+                        .map(ServletRequestAttributes::getRequest)
+                        .orElseThrow(() ->  new InvalidHeaderException(Constants.INVALID_HEADER_FORMAT_EXCEPTION));
 
         String header = request.getHeader("loginparams");
 
         if (header == null) {
-            throw new RuntimeException("Missing loginparams header");
+            throw new InvalidHeaderException(Constants.INVALID_HEADER_FORMAT_EXCEPTION);
         }
 
         try {
-            CommonParamsDTO headerDto =
-                    objectMapper.readValue(header, CommonParamsDTO.class);
+            CommonParamsDTO headerDto = objectMapper.readValue(header, CommonParamsDTO.class);
 
             // validation
-            Set<ConstraintViolation<CommonParamsDTO>> violations =
-                    validator.validate(headerDto);
+            Set<ConstraintViolation<CommonParamsDTO>> violations = validator.validate(headerDto);
 
             if (!violations.isEmpty()) {
                 throw new ConstraintViolationException(violations);
@@ -78,15 +82,10 @@ public class CommonHeaderBinder extends RequestBodyAdviceAdapter {
             base.setStaffId(headerDto.getStaffId());
             base.setLoginId(headerDto.getLoginId());
             base.setLangCd(headerDto.getLangCd());
-            base.setRoleCd(headerDto.getRoleCd());
             base.setOfficeCd(headerDto.getOfficeCd());
-            base.setStateCd(headerDto.getStateCd());
             base.setStateId(headerDto.getStateId());
             base.setDistrictId(headerDto.getDistrictId());
-            base.setDistrictCd(headerDto.getDistrictCd());
-            base.setPsCd(headerDto.getPsCd());
             base.setPsId(headerDto.getPsId());
-            base.setPsIdList(headerDto.getPsIdList());
             base.setOfficeTypeCd(headerDto.getOfficeTypeCd());
             base.setRankCd(headerDto.getRankCd());
             base.setOfficeLevelCd(headerDto.getOfficeLevelCd());
@@ -95,9 +94,10 @@ public class CommonHeaderBinder extends RequestBodyAdviceAdapter {
             base.setOicLoginId(headerDto.getOicLoginId());
 
         } catch (JsonProcessingException e) {
-            throw new InvalidHeaderException("INVALIDHEADER");
+            throw new InvalidHeaderException(Constants.INVALID_HEADER_FORMAT_EXCEPTION);
         }
 
         return base;
     }
+
 }

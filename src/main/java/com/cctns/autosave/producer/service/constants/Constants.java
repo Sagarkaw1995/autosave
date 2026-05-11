@@ -39,6 +39,8 @@ public class Constants {
     public static final String SUCCESS = "SUCCESS";
     public static final String SAVE_DRAFT_SUCCESSFULLY = "SDS0001";
     public static final String FETCH_DRAFT_SUCCESSFULLY = "FDS0001";
+    public static final String INVALID_HEADER_MISSING_COMMON_PARAMS_EXCEPTION = "FDS0001";
+    public static final String INVALID_HEADER_FORMAT_EXCEPTION = "FDS0001";
 
     //Fail Message :
     public static final String UNIQUE_KEY_CONSTRAINT_ERROR = "EXF0005";
@@ -57,14 +59,19 @@ public class Constants {
     public static final String PREVENTIVE_ACTION = "PREVENTIVE_ACTION";
     public static final String STRANGER_ROLL = "STRANGER_ROLL";
 
-
     //Autosave Service Constants :
     public static final String DRAFT_NUMBER_DELIMITER = "_";
     public static final String SHARD_TAG_START ="{";
     public static final String SHARD_TAG_END ="}";
     public static final Integer SHARD_COUNT = 32;
 
-
     //Expression for validation :
     public static final String VALIDATION_EXPRESSION = "^[A-Z]+(?:[_/][A-Z]+)*_\\d+_\\{\\d+}$";
+
+    //Constants For Validation :
+    public static final String STAFF_ID_NOT_NULL_MSG = "STAFF ID REQUIRED";
+    public static final String LANG_CD_NOT_NULL_MSG = "LANG CD REQUIRED";
+    public static final String OFFICE_CD_NOT_NULL_MSG = "OFFICE CD REQUIRED";
+    public static final String STATE_ID_NOT_NULL_MSG = "STATE ID REQUIRED";
+    public static final String ROLES_NOT_EMPTY_MSG = "ROLES REQUIRED";
 }

@@ -2,6 +2,8 @@ package com.cctns.autosave.producer.service.web.dto.request;
 
 import java.util.List;
 
+import com.cctns.autosave.producer.service.constants.Constants;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -13,28 +15,23 @@ import lombok.Setter;
 @AllArgsConstructor
 @NoArgsConstructor
 public class CommonParamsDTO {
-    //user credentials
-    @NotNull(message = "staffId is mandatory")
+    // user credentials
+    @NotNull(message = Constants.STAFF_ID_NOT_NULL_MSG)
     private Long staffId;
     private String loginId;
-    @NotNull(message = "langCd is mandatory")
+    @NotNull(message =Constants.LANG_CD_NOT_NULL_MSG)
     private Integer langCd;
-    private List<Integer> roleCd;   //current selected role
+    @NotNull(message = Constants.OFFICE_CD_NOT_NULL_MSG)
     private Long officeCd;
-    private Integer stateCd;
-    @NotNull(message = "stateId is mandatory")
+    @NotNull(message = Constants.STATE_ID_NOT_NULL_MSG)
     private Long stateId;
-    private Integer districtCd;
-    @NotNull(message = "districtId is mandatory")
     private Long districtId;
-    private Integer psCd;
     private Long psId;
-    private List<Integer> psIdList;
     private Integer officeTypeCd;
     private Integer rankCd;
     private Integer officeLevelCd;
-    private List<Integer> allowedRoleCd;    //all available role for that user
-    @NotNull(message = "oicStaffId is mandatory")
+    @NotEmpty(message = Constants.ROLES_NOT_EMPTY_MSG)
+    private List<Integer> allowedRoleCd; // all available role for that use
     private Long oicStaffId;
     private String oicLoginId;
 }
