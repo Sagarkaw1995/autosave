@@ -74,4 +74,15 @@ public class Constants {
     public static final String OFFICE_CD_NOT_NULL_MSG = "OFFICE CD REQUIRED";
     public static final String STATE_ID_NOT_NULL_MSG = "STATE ID REQUIRED";
     public static final String ROLES_NOT_EMPTY_MSG = "ROLES REQUIRED";
+
+    //Encryption :
+    public static final String SECRET_KEY_INIT_FAILED_EX = "SECKEYINITFAILEX";
+    public static final String ENCRYPTION_FAILED_EX = "ENCFAILEX";
+    public static final String DECRYPTION_FAILED_EX = "DECFAILEX";
+
+    public static final String ALGORITHM = "AES/GCM/NoPadding";
+    public static final String ENCRYPTION = "AES";
+    public static final int GCM_TAG_LENGTH = 128; // bits
+    public static final int GCM_IV_LENGTH = 12; // bytes (96 bits)
+    public static final int AES_KEY_SIZE = 32;
 }
