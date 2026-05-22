@@ -166,8 +166,12 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
         String tag = "{" + psCd + "}";
         String draftId = UUID.randomUUID().toString();
 
+        String firRegNum = null;
         //ADDED FOR FINAL FORM :
-        String firRegNum = request.getFirRegNum().toString();
+        if(Constants.FINAL_MODULE_NAME_VALIDATION.equals(request.getModuleName()) && request.getFirRegNum()!=null) {
+             firRegNum = request.getFirRegNum().toString();
+        }
+
         //Module-Specific Counter For Serial Number
         String seqKey = "AUTO-SAVE:SEQ:" + psCd + ":" + loginId + ":" + module + "_" + tag;
         Long srNo = redisZSetTemplate.opsForValue().increment(seqKey);
@@ -189,7 +193,9 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
         gridMeta.put("draftNum",srNo+"/"+LocalDateTime.now().getYear());
         gridMeta.put("draftSrno", srNo);
         gridMeta.put("draftId", draftId);
-        gridMeta.put("firRegNum",firRegNum);
+        if(Constants.FINAL_MODULE_NAME_VALIDATION.equals(request.getModuleName()) && request.getFirRegNum()!=null) {
+            gridMeta.put("firRegNum", firRegNum);
+        }
         gridMeta.put("draftDateTime", LocalDateTime.now().format(FORMATTER));
 
         // Use your JSON template for the Metadata Map
