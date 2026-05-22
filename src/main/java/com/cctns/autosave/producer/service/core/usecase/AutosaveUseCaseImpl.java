@@ -154,6 +154,11 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
      */
     @Override
     public AutosaveCreateResponse sentinelPersist(AutosaveDomain request){
+
+        if(Constants.FINAL_MODULE_NAME_VALIDATION.equals(request.getModuleName()) && request.getFirRegNum()==null){
+            throw new RuntimeException("For Final Form Autosave FIR Reg Num Is Mandatory");
+        }
+
         String psCd = request.getOfficeCd().toString();
         String loginId = request.getLoginId();
         String module = request.getModuleName();
@@ -161,6 +166,8 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
         String tag = "{" + psCd + "}";
         String draftId = UUID.randomUUID().toString();
 
+        //ADDED FOR FINAL FORM :
+        String firRegNum = request.getFirRegNum().toString();
         //Module-Specific Counter For Serial Number
         String seqKey = "AUTO-SAVE:SEQ:" + psCd + ":" + loginId + ":" + module + "_" + tag;
         Long srNo = redisZSetTemplate.opsForValue().increment(seqKey);
@@ -182,6 +189,7 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
         gridMeta.put("draftNum",srNo+"/"+LocalDateTime.now().getYear());
         gridMeta.put("draftSrno", srNo);
         gridMeta.put("draftId", draftId);
+        gridMeta.put("firRegNum",firRegNum);
         gridMeta.put("draftDateTime", LocalDateTime.now().format(FORMATTER));
 
         // Use your JSON template for the Metadata Map
@@ -316,68 +324,155 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
     @Override
     public PageDomain<List<LinkedHashMap<String, Object>>> fetchAutosaveDraftList(AutosaveDomain request) {
 
-        //Extract pagination parameters with defaults
-        int pageNo = (request.getPageable().getPage() != null && request.getPageable().getPage() > 0) ? request.getPageable().getPage() : 1;
-        int pageSize = (request.getPageable().getPageSize() != null && request.getPageable().getPageSize() > 0) ? request.getPageable().getPageSize() : 10;
+        if(!Constants.FINAL_MODULE_NAME_VALIDATION.equals(request.getModuleName())) {
+            //Extract pagination parameters with defaults
+            int pageNo = (request.getPageable().getPage() != null && request.getPageable().getPage() > 0) ? request.getPageable().getPage() : 1;
+            int pageSize = (request.getPageable().getPageSize() != null && request.getPageable().getPageSize() > 0) ? request.getPageable().getPageSize() : 10;
 
-        String psCd = request.getOfficeCd().toString();
-        String loginId = request.getLoginId();
-        String module = request.getModuleName();
+            String psCd = request.getOfficeCd().toString();
+            String loginId = request.getLoginId();
+            String module = request.getModuleName();
 
-        String listKey = "AUTO-SAVE:POLICE-STATIONS:" + psCd + ":LOGIN-IDS:" + loginId + ":MODULES:" + module;
+            String listKey = "AUTO-SAVE:POLICE-STATIONS:" + psCd + ":LOGIN-IDS:" + loginId + ":MODULES:" + module;
 
-        //Fetch all entries from the Hash
-        Map<Object, Object> allDraftsMap = redisJsonTemplate.opsForHash().entries(listKey);
+            //Fetch all entries from the Hash
+            Map<Object, Object> allDraftsMap = redisJsonTemplate.opsForHash().entries(listKey);
 
-        if (allDraftsMap.isEmpty()) {
+            if (allDraftsMap.isEmpty()) {
+                return PageDomain.<List<LinkedHashMap<String, Object>>>builder()
+                        .list(Collections.emptyList())
+                        .totalSize(0L)
+                        .pageCount(0L)
+                        .build();
+            }
+
+            //Map, Sort, and Slicing (Pagination)
+            List<LinkedHashMap<String, Object>> sortedDraftList = allDraftsMap.values().stream()
+                    .map(obj -> {
+                        // 1. Convert to Map
+                        LinkedHashMap<String, Object> map = objectMapper.convertValue(obj,
+                                new TypeReference<LinkedHashMap<String, Object>>() {
+                                });
+
+                        // 2. Format draftDateTime (Always present)
+                        formatField(map, "draftDateTime");
+
+                        // 3. Format lastUpdated (Optional - only formats if present)
+                        if (map.containsKey("lastUpdated") && map.get("lastUpdated") != null) {
+                            formatField(map, "lastUpdated");
+                        }
+
+                        return map;
+                    })
+                    .sorted((m1, m2) -> {
+                        // Use standard ISO parse for sorting (it handles both long and short strings)
+                        LocalDateTime d1 = LocalDateTime.parse(m1.get("draftDateTime").toString());
+                        LocalDateTime d2 = LocalDateTime.parse(m2.get("draftDateTime").toString());
+                        return d2.compareTo(d1);
+                    })
+                    .collect(Collectors.toList());
+
+            //Calculate total size and total pages
+            long totalSize = sortedDraftList.size();
+            long pageCount = (int) Math.ceil((double) totalSize / pageSize);
+
+            //Slice the list for the current page
+            List<LinkedHashMap<String, Object>> paginatedList = sortedDraftList.stream()
+                    .skip((long) (pageNo - 1) * pageSize)
+                    .limit(pageSize)
+                    .collect(Collectors.toList());
+
+            //Response
             return PageDomain.<List<LinkedHashMap<String, Object>>>builder()
-                    .list(Collections.emptyList())
-                    .totalSize(0L)
-                    .pageCount(0L)
+                    .list(paginatedList)
+                    .totalSize(totalSize)
+                    .pageCount(pageCount)
                     .build();
         }
+        else {
+            // For Final Form :
+            if(request.getFirRegNum()==null){
+                throw new RuntimeException("For Final Form Autosave FIR Reg Num Is Mandatory");
+            }
+            //Extract pagination parameters with defaults
+            int pageNo = (request.getPageable().getPage() != null && request.getPageable().getPage() > 0) ? request.getPageable().getPage() : 1;
+            int pageSize = (request.getPageable().getPageSize() != null && request.getPageable().getPageSize() > 0) ? request.getPageable().getPageSize() : 10;
 
-        //Map, Sort, and Slicing (Pagination)
-        List<LinkedHashMap<String, Object>> sortedDraftList = allDraftsMap.values().stream()
-                .map(obj -> {
-                    // 1. Convert to Map
-                    LinkedHashMap<String, Object> map = objectMapper.convertValue(obj,
-                            new TypeReference<LinkedHashMap<String, Object>>() {});
+            String psCd = request.getOfficeCd().toString();
+            String loginId = request.getLoginId();
+            String module = request.getModuleName();
 
-                    // 2. Format draftDateTime (Always present)
-                    formatField(map, "draftDateTime");
+            //Added for final form :
+            Long firRegNum = request.getFirRegNum();
 
-                    // 3. Format lastUpdated (Optional - only formats if present)
-                    if (map.containsKey("lastUpdated") && map.get("lastUpdated") != null) {
-                        formatField(map, "lastUpdated");
-                    }
+            String listKey = "AUTO-SAVE:POLICE-STATIONS:" + psCd + ":LOGIN-IDS:" + loginId + ":MODULES:" + module;
 
-                    return map;
-                })
-                .sorted((m1, m2) -> {
-                    // Use standard ISO parse for sorting (it handles both long and short strings)
-                    LocalDateTime d1 = LocalDateTime.parse(m1.get("draftDateTime").toString());
-                    LocalDateTime d2 = LocalDateTime.parse(m2.get("draftDateTime").toString());
-                    return d2.compareTo(d1);
-                })
-                .collect(Collectors.toList());
+            //Fetch all entries from the Hash
+            Map<Object, Object> allDraftsMap = redisJsonTemplate.opsForHash().entries(listKey);
 
-        //Calculate total size and total pages
-        long totalSize = sortedDraftList.size();
-        long pageCount = (int) Math.ceil((double) totalSize / pageSize);
+            if (allDraftsMap.isEmpty()) {
+                return PageDomain.<List<LinkedHashMap<String, Object>>>builder()
+                        .list(Collections.emptyList())
+                        .totalSize(0L)
+                        .pageCount(0L)
+                        .build();
+            }
 
-        //Slice the list for the current page
-        List<LinkedHashMap<String, Object>> paginatedList = sortedDraftList.stream()
-                .skip((long) (pageNo - 1) * pageSize)
-                .limit(pageSize)
-                .collect(Collectors.toList());
+            //Map, Sort, and Slicing (Pagination)
+            List<LinkedHashMap<String, Object>> sortedDraftList = allDraftsMap.values().stream().filter(obj -> {
+                        // Extract a temporary map to check the condition
+                        LinkedHashMap<String, Object> tempMap = objectMapper.convertValue(obj,
+                                new TypeReference<LinkedHashMap<String, Object>>() {});
 
-        //Response
-        return PageDomain.<List<LinkedHashMap<String, Object>>>builder()
-                .list(paginatedList)
-                .totalSize(totalSize)
-                .pageCount(pageCount)
-                .build();
+                        Object regNum = tempMap.get("firRegNum");
+                        if(regNum==null) {
+                          return false;
+                        }
+
+                        Long firNum = Long.parseLong(regNum.toString());
+                        return firRegNum.equals(firNum);
+                    })
+                    .map(obj -> {
+                        // 1. Convert to Map
+                        LinkedHashMap<String, Object> map = objectMapper.convertValue(obj,
+                                new TypeReference<LinkedHashMap<String, Object>>() {
+                                });
+
+                        // 2. Format draftDateTime (Always present)
+                        formatField(map, "draftDateTime");
+
+                        // 3. Format lastUpdated (Optional - only formats if present)
+                        if (map.containsKey("lastUpdated") && map.get("lastUpdated") != null) {
+                            formatField(map, "lastUpdated");
+                        }
+
+                        return map;
+                    })
+                    .sorted((m1, m2) -> {
+                        // Use standard ISO parse for sorting (it handles both long and short strings)
+                        LocalDateTime d1 = LocalDateTime.parse(m1.get("draftDateTime").toString());
+                        LocalDateTime d2 = LocalDateTime.parse(m2.get("draftDateTime").toString());
+                        return d2.compareTo(d1);
+                    })
+                    .collect(Collectors.toList());
+
+            //Calculate total size and total pages
+            long totalSize = sortedDraftList.size();
+            long pageCount = (int) Math.ceil((double) totalSize / pageSize);
+
+            //Slice the list for the current page
+            List<LinkedHashMap<String, Object>> paginatedList = sortedDraftList.stream()
+                    .skip((long) (pageNo - 1) * pageSize)
+                    .limit(pageSize)
+                    .collect(Collectors.toList());
+
+            //Response
+            return PageDomain.<List<LinkedHashMap<String, Object>>>builder()
+                    .list(paginatedList)
+                    .totalSize(totalSize)
+                    .pageCount(pageCount)
+                    .build();
+        }
     }
 
     @Override

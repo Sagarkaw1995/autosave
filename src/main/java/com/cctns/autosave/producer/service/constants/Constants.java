@@ -85,4 +85,7 @@ public class Constants {
     public static final int GCM_TAG_LENGTH = 128; // bits
     public static final int GCM_IV_LENGTH = 12; // bytes (96 bits)
     public static final int AES_KEY_SIZE = 32;
+
+    //Module Name Validation :
+    public static final String FINAL_MODULE_NAME_VALIDATION = "FINALR";
 }

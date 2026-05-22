@@ -2,6 +2,7 @@ package com.cctns.autosave.producer.service.web.dto.request;
 
 import java.util.LinkedHashMap;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -15,6 +16,7 @@ import lombok.Setter;
 public class AutosaveRequestDto extends CommonParamsDTO{
 
     @NotNull(message = "moduleName field is mandatory")
+    @JsonProperty("module")
     private String moduleName;
     @NotNull(message = "The draftId is mandatory")
     private String draftId;
