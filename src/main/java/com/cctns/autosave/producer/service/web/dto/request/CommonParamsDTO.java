@@ -34,4 +34,6 @@ public class CommonParamsDTO {
     private List<Integer> allowedRoleCd; // all available role for that use
     private Long oicStaffId;
     private String oicLoginId;
+
+    private String loginparams;
 }
