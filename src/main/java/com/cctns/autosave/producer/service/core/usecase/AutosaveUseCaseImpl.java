@@ -332,7 +332,11 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
 
         if(!Constants.FINAL_MODULE_NAME_VALIDATION.equals(request.getModuleName())) {
             //Extract pagination parameters with defaults
-            int pageNo = (request.getPageable().getPage() != null && request.getPageable().getPage() > 0) ? request.getPageable().getPage() : 1;
+            // Treat page 0 as the first page. If null, default to 0.
+            int pageNo = (request.getPageable().getPage() != null) ? request.getPageable().getPage() : 0;
+            // Ensure we don't go below 0
+            pageNo = Math.max(0, pageNo);
+
             int pageSize = (request.getPageable().getPageSize() != null && request.getPageable().getPageSize() > 0) ? request.getPageable().getPageSize() : 10;
 
             String psCd = request.getOfficeCd().toString();
@@ -382,9 +386,15 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
             long totalSize = sortedDraftList.size();
             long pageCount = (int) Math.ceil((double) totalSize / pageSize);
 
+            //Skip for 1 based pagination :
+           // long skipCount = (long) (pageNo - 1) * pageSize;
+
+            //Skip for 0 based pagination :
+            long skipCount = (long) pageNo * pageSize;
+
             //Slice the list for the current page
             List<LinkedHashMap<String, Object>> paginatedList = sortedDraftList.stream()
-                    .skip((long) (pageNo - 1) * pageSize)
+                    .skip(skipCount)
                     .limit(pageSize)
                     .collect(Collectors.toList());
 
@@ -401,7 +411,11 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
                 throw new RuntimeException("For Final Form Autosave FIR Reg Num Is Mandatory");
             }
             //Extract pagination parameters with defaults
-            int pageNo = (request.getPageable().getPage() != null && request.getPageable().getPage() > 0) ? request.getPageable().getPage() : 1;
+            // Treat page 0 as the first page. If null, default to 0.
+            int pageNo = (request.getPageable().getPage() != null) ? request.getPageable().getPage() : 0;
+            // Ensure we don't go below 0
+            pageNo = Math.max(0, pageNo);
+
             int pageSize = (request.getPageable().getPageSize() != null && request.getPageable().getPageSize() > 0) ? request.getPageable().getPageSize() : 10;
 
             String psCd = request.getOfficeCd().toString();
@@ -466,9 +480,11 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
             long totalSize = sortedDraftList.size();
             long pageCount = (int) Math.ceil((double) totalSize / pageSize);
 
+            long skipCount = (long) pageNo * pageSize;
+
             //Slice the list for the current page
             List<LinkedHashMap<String, Object>> paginatedList = sortedDraftList.stream()
-                    .skip((long) (pageNo - 1) * pageSize)
+                    .skip(skipCount)
                     .limit(pageSize)
                     .collect(Collectors.toList());
 
