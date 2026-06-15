@@ -21,4 +21,6 @@ public class AutosaveDraftListRequestDto extends CommonParamsDTO{
    private Pageable pageable;
 
     private Long firRegNum; //Added for final Form
+    private Long arrSurrSrNo; //  Added for bail cancellation
+    private Long accusedVid; //Added for arrest warrant
 }

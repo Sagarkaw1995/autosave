@@ -6,6 +6,7 @@ import com.cctns.autosave.producer.service.core.domain.DraftNumberDomain;
 import com.cctns.autosave.producer.service.core.domain.PageDomain;
 import com.cctns.autosave.producer.service.core.exception.DraftIdNotFoundException;
 import com.cctns.autosave.producer.service.core.exception.InvalidDraftNumberFormat;
+import com.cctns.autosave.producer.service.core.exception.InvalidDraftRequestException;
 import com.cctns.autosave.producer.service.core.exception.NoAutoSaveDataFoundException;
 import com.cctns.autosave.producer.service.core.exception.SaveNumCannotBeNullException;
 import com.cctns.autosave.producer.service.core.external.port.MicroserviceComms;
@@ -155,8 +156,16 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
     @Override
     public AutosaveCreateResponse sentinelPersist(AutosaveDomain request){
 
-        if(Constants.FINAL_MODULE_NAME_VALIDATION.equals(request.getModuleName()) && request.getFirRegNum()==null){
-            throw new RuntimeException("For Final Form Autosave FIR Reg Num Is Mandatory");
+        if (Constants.FINAL_MODULE_NAME_VALIDATION.equals(request.getModuleName()) && request.getFirRegNum() == null) {
+            throw new InvalidDraftRequestException("For Final Form Autosave FIR Reg Num Is Mandatory");
+        }
+
+        if (Constants.ARREST_WARRANT_MODULE.equals(request.getModuleName()) && request.getAccusedVid() == null) {
+            throw new InvalidDraftRequestException("For Arrest Warrant Autosave Accused Vid Num Is Mandatory");
+        }
+
+        if (Constants.BAIL_CANCEL_MODULE.equals(request.getModuleName()) && request.getArrSurrSrNo() == null) {
+            throw new InvalidDraftRequestException("For Bail Cancellation Autosave Arrest Num Is Mandatory");
         }
 
         String psCd = request.getOfficeCd().toString();
@@ -165,12 +174,6 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
 
         String tag = "{" + psCd + "}";
         String draftId = UUID.randomUUID().toString();
-
-        String firRegNum = null;
-        //ADDED FOR FINAL FORM :
-        if(Constants.FINAL_MODULE_NAME_VALIDATION.equals(request.getModuleName()) && request.getFirRegNum()!=null) {
-             firRegNum = request.getFirRegNum().toString();
-        }
 
         //Module-Specific Counter For Serial Number
         String seqKey = "AUTO-SAVE:SEQ:" + psCd + ":" + loginId + ":" + module + "_" + tag;
@@ -194,7 +197,18 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
         gridMeta.put("draftSrno", srNo);
         gridMeta.put("draftId", draftId);
         if(Constants.FINAL_MODULE_NAME_VALIDATION.equals(request.getModuleName()) && request.getFirRegNum()!=null) {
+            String firRegNum = request.getFirRegNum().toString();
             gridMeta.put("firRegNum", firRegNum);
+        }
+        if (Constants.ARREST_WARRANT_MODULE.equals(request.getModuleName()) && request.getAccusedVid() != null) {
+            String accusedVid = request.getAccusedVid().toString();
+            gridMeta.put("accusedVid", accusedVid);
+        }
+        if (Constants.BAIL_CANCEL_MODULE.equals(request.getModuleName()) && request.getArrSurrSrNo() != null) {
+            String arrSurrSrNo = request.getArrSurrSrNo().toString();
+            String accusedName = request.getAccusedName();
+            gridMeta.put("arrSurrSrNo", arrSurrSrNo);
+            gridMeta.put("accusedName", accusedName);
         }
         gridMeta.put("draftDateTime", LocalDateTime.now().format(FORMATTER));
 
@@ -327,174 +341,372 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
         }
     }
 
+    private PageDomain<List<LinkedHashMap<String, Object>>> fetchDrafListForFinalForm(AutosaveDomain request){
+        // For Final Form :
+        if(request.getFirRegNum()==null){
+            throw new InvalidDraftRequestException("For Final Form Autosave FIR Reg Num Is Mandatory");
+        }
+        //Extract pagination parameters with defaults
+        // Treat page 0 as the first page. If null, default to 0.
+        int pageNo = (request.getPageable().getPage() != null) ? request.getPageable().getPage() : 0;
+        // Ensure we don't go below 0
+        pageNo = Math.max(0, pageNo);
+
+        int pageSize = (request.getPageable().getPageSize() != null && request.getPageable().getPageSize() > 0) ? request.getPageable().getPageSize() : 10;
+
+        String psCd = request.getOfficeCd().toString();
+        String loginId = request.getLoginId();
+        String module = request.getModuleName();
+
+        //Added for final form :
+        Long firRegNum = request.getFirRegNum();
+
+        String listKey = "AUTO-SAVE:POLICE-STATIONS:" + psCd + ":LOGIN-IDS:" + loginId + ":MODULES:" + module;
+
+        //Fetch all entries from the Hash
+        Map<Object, Object> allDraftsMap = redisJsonTemplate.opsForHash().entries(listKey);
+
+        if (allDraftsMap.isEmpty()) {
+            return PageDomain.<List<LinkedHashMap<String, Object>>>builder()
+                    .list(Collections.emptyList())
+                    .totalSize(0L)
+                    .pageCount(0L)
+                    .build();
+        }
+
+        //Map, Sort, and Slicing (Pagination)
+        List<LinkedHashMap<String, Object>> sortedDraftList = allDraftsMap.values().stream().filter(obj -> {
+                    // Extract a temporary map to check the condition
+                    LinkedHashMap<String, Object> tempMap = objectMapper.convertValue(obj,
+                            new TypeReference<LinkedHashMap<String, Object>>() {});
+
+                    Object regNum = tempMap.get("firRegNum");
+                    if(regNum==null) {
+                        return false;
+                    }
+
+                    Long firNum = Long.parseLong(regNum.toString());
+                    return firRegNum.equals(firNum);
+                })
+                .map(obj -> {
+                    // 1. Convert to Map
+                    LinkedHashMap<String, Object> map = objectMapper.convertValue(obj,
+                            new TypeReference<LinkedHashMap<String, Object>>() {
+                            });
+
+                    // 2. Format draftDateTime (Always present)
+                    formatField(map, "draftDateTime");
+
+                    // 3. Format lastUpdated (Optional - only formats if present)
+                    if (map.containsKey("lastUpdated") && map.get("lastUpdated") != null) {
+                        formatField(map, "lastUpdated");
+                    }
+
+                    return map;
+                })
+                .sorted((m1, m2) -> {
+                    // Use standard ISO parse for sorting (it handles both long and short strings)
+                    LocalDateTime d1 = LocalDateTime.parse(m1.get("draftDateTime").toString());
+                    LocalDateTime d2 = LocalDateTime.parse(m2.get("draftDateTime").toString());
+                    return d2.compareTo(d1);
+                })
+                .collect(Collectors.toList());
+
+        //Calculate total size and total pages
+        long totalSize = sortedDraftList.size();
+        long pageCount = (int) Math.ceil((double) totalSize / pageSize);
+
+        long skipCount = (long) pageNo * pageSize;
+
+        //Slice the list for the current page
+        List<LinkedHashMap<String, Object>> paginatedList = sortedDraftList.stream()
+                .skip(skipCount)
+                .limit(pageSize)
+                .collect(Collectors.toList());
+
+        //Response
+        return PageDomain.<List<LinkedHashMap<String, Object>>>builder()
+                .list(paginatedList)
+                .totalSize(totalSize)
+                .pageCount(pageCount)
+                .build();
+    }
+
+    /**
+     * Fetches normal draft list
+     * @param request
+     * @return
+     */
+    private PageDomain<List<LinkedHashMap<String, Object>>> fetchNormalDraft(AutosaveDomain request){
+        //Extract pagination parameters with defaults
+        // Treat page 0 as the first page. If null, default to 0.
+        int pageNo = (request.getPageable().getPage() != null) ? request.getPageable().getPage() : 0;
+        // Ensure we don't go below 0
+        pageNo = Math.max(0, pageNo);
+
+        int pageSize = (request.getPageable().getPageSize() != null && request.getPageable().getPageSize() > 0) ? request.getPageable().getPageSize() : 10;
+
+        String psCd = request.getOfficeCd().toString();
+        String loginId = request.getLoginId();
+        String module = request.getModuleName();
+
+        String listKey = "AUTO-SAVE:POLICE-STATIONS:" + psCd + ":LOGIN-IDS:" + loginId + ":MODULES:" + module;
+
+        //Fetch all entries from the Hash
+        Map<Object, Object> allDraftsMap = redisJsonTemplate.opsForHash().entries(listKey);
+
+        if (allDraftsMap.isEmpty()) {
+            return PageDomain.<List<LinkedHashMap<String, Object>>>builder()
+                    .list(Collections.emptyList())
+                    .totalSize(0L)
+                    .pageCount(0L)
+                    .build();
+        }
+
+        //Map, Sort, and Slicing (Pagination)
+        List<LinkedHashMap<String, Object>> sortedDraftList = allDraftsMap.values().stream()
+                .map(obj -> {
+                    // 1. Convert to Map
+                    LinkedHashMap<String, Object> map = objectMapper.convertValue(obj,
+                            new TypeReference<LinkedHashMap<String, Object>>() {
+                            });
+
+                    // 2. Format draftDateTime (Always present)
+                    formatField(map, "draftDateTime");
+
+                    // 3. Format lastUpdated (Optional - only formats if present)
+                    if (map.containsKey("lastUpdated") && map.get("lastUpdated") != null) {
+                        formatField(map, "lastUpdated");
+                    }
+
+                    return map;
+                })
+                .sorted((m1, m2) -> {
+                    // Use standard ISO parse for sorting (it handles both long and short strings)
+                    LocalDateTime d1 = LocalDateTime.parse(m1.get("draftDateTime").toString());
+                    LocalDateTime d2 = LocalDateTime.parse(m2.get("draftDateTime").toString());
+                    return d2.compareTo(d1);
+                })
+                .collect(Collectors.toList());
+
+        //Calculate total size and total pages
+        long totalSize = sortedDraftList.size();
+        long pageCount = (int) Math.ceil((double) totalSize / pageSize);
+
+        //Skip for 1 based pagination :
+        // long skipCount = (long) (pageNo - 1) * pageSize;
+
+        //Skip for 0 based pagination :
+        long skipCount = (long) pageNo * pageSize;
+
+        //Slice the list for the current page
+        List<LinkedHashMap<String, Object>> paginatedList = sortedDraftList.stream()
+                .skip(skipCount)
+                .limit(pageSize)
+                .collect(Collectors.toList());
+
+        //Response
+        return PageDomain.<List<LinkedHashMap<String, Object>>>builder()
+                .list(paginatedList)
+                .totalSize(totalSize)
+                .pageCount(pageCount)
+                .build();
+    }
+
+
+    private PageDomain<List<LinkedHashMap<String, Object>>> fetchDraftListForArrestWarrant(AutosaveDomain request){
+        // For Final Form :
+        if(request.getAccusedVid()==null){
+            throw new InvalidDraftRequestException("For Arrest Warrant Autosave Accused Vid Num Is Mandatory");
+        }
+        //Extract pagination parameters with defaults
+        // Treat page 0 as the first page. If null, default to 0.
+        int pageNo = (request.getPageable().getPage() != null) ? request.getPageable().getPage() : 0;
+        // Ensure we don't go below 0
+        pageNo = Math.max(0, pageNo);
+
+        int pageSize = (request.getPageable().getPageSize() != null && request.getPageable().getPageSize() > 0) ? request.getPageable().getPageSize() : 10;
+
+        String psCd = request.getOfficeCd().toString();
+        String loginId = request.getLoginId();
+        String module = request.getModuleName();
+
+        //Added for Arrest Warrant form :
+        Long accusedVid = request.getAccusedVid();
+
+        String listKey = "AUTO-SAVE:POLICE-STATIONS:" + psCd + ":LOGIN-IDS:" + loginId + ":MODULES:" + module;
+
+        //Fetch all entries from the Hash
+        Map<Object, Object> allDraftsMap = redisJsonTemplate.opsForHash().entries(listKey);
+
+        if (allDraftsMap.isEmpty()) {
+            return PageDomain.<List<LinkedHashMap<String, Object>>>builder()
+                    .list(Collections.emptyList())
+                    .totalSize(0L)
+                    .pageCount(0L)
+                    .build();
+        }
+
+        //Map, Sort, and Slicing (Pagination)
+        List<LinkedHashMap<String, Object>> sortedDraftList = allDraftsMap.values().stream().filter(obj -> {
+                    // Extract a temporary map to check the condition
+                    LinkedHashMap<String, Object> tempMap = objectMapper.convertValue(obj,
+                            new TypeReference<LinkedHashMap<String, Object>>() {});
+
+                    Object regNum = tempMap.get("accusedVid");
+                    if(regNum==null) {
+                        return false;
+                    }
+
+                    Long accVid = Long.parseLong(regNum.toString());
+                    return accusedVid.equals(accVid);
+                })
+                .map(obj -> {
+                    // 1. Convert to Map
+                    LinkedHashMap<String, Object> map = objectMapper.convertValue(obj,
+                            new TypeReference<LinkedHashMap<String, Object>>() {
+                            });
+
+                    // 2. Format draftDateTime (Always present)
+                    formatField(map, "draftDateTime");
+
+                    // 3. Format lastUpdated (Optional - only formats if present)
+                    if (map.containsKey("lastUpdated") && map.get("lastUpdated") != null) {
+                        formatField(map, "lastUpdated");
+                    }
+
+                    return map;
+                })
+                .sorted((m1, m2) -> {
+                    // Use standard ISO parse for sorting (it handles both long and short strings)
+                    LocalDateTime d1 = LocalDateTime.parse(m1.get("draftDateTime").toString());
+                    LocalDateTime d2 = LocalDateTime.parse(m2.get("draftDateTime").toString());
+                    return d2.compareTo(d1);
+                })
+                .collect(Collectors.toList());
+
+        //Calculate total size and total pages
+        long totalSize = sortedDraftList.size();
+        long pageCount = (int) Math.ceil((double) totalSize / pageSize);
+
+        long skipCount = (long) pageNo * pageSize;
+
+        //Slice the list for the current page
+        List<LinkedHashMap<String, Object>> paginatedList = sortedDraftList.stream()
+                .skip(skipCount)
+                .limit(pageSize)
+                .collect(Collectors.toList());
+
+        //Response
+        return PageDomain.<List<LinkedHashMap<String, Object>>>builder()
+                .list(paginatedList)
+                .totalSize(totalSize)
+                .pageCount(pageCount)
+                .build();
+    }
+
+
+    private PageDomain<List<LinkedHashMap<String, Object>>> fetchDraftListForBailCancellation(AutosaveDomain request){
+        // For Final Form :
+        if(request.getArrSurrSrNo()==null){
+            throw new InvalidDraftRequestException("For Bail Cancellation Autosave Arrest Num Is Mandatory");
+        }
+        //Extract pagination parameters with defaults
+        // Treat page 0 as the first page. If null, default to 0.
+        int pageNo = (request.getPageable().getPage() != null) ? request.getPageable().getPage() : 0;
+        // Ensure we don't go below 0
+        pageNo = Math.max(0, pageNo);
+
+        int pageSize = (request.getPageable().getPageSize() != null && request.getPageable().getPageSize() > 0) ? request.getPageable().getPageSize() : 10;
+
+        String psCd = request.getOfficeCd().toString();
+        String loginId = request.getLoginId();
+        String module = request.getModuleName();
+
+        //Added for final form :
+        Long arrSurrSrNo = request.getArrSurrSrNo();
+
+        String listKey = "AUTO-SAVE:POLICE-STATIONS:" + psCd + ":LOGIN-IDS:" + loginId + ":MODULES:" + module;
+
+        //Fetch all entries from the Hash
+        Map<Object, Object> allDraftsMap = redisJsonTemplate.opsForHash().entries(listKey);
+
+        if (allDraftsMap.isEmpty()) {
+            return PageDomain.<List<LinkedHashMap<String, Object>>>builder()
+                    .list(Collections.emptyList())
+                    .totalSize(0L)
+                    .pageCount(0L)
+                    .build();
+        }
+
+        //Map, Sort, and Slicing (Pagination)
+        List<LinkedHashMap<String, Object>> sortedDraftList = allDraftsMap.values().stream().filter(obj -> {
+                    // Extract a temporary map to check the condition
+                    LinkedHashMap<String, Object> tempMap = objectMapper.convertValue(obj,
+                            new TypeReference<LinkedHashMap<String, Object>>() {});
+
+                    Object regNum = tempMap.get("arrSurrSrNo");
+                    if(regNum==null) {
+                        return false;
+                    }
+
+                    Long arrNum = Long.parseLong(regNum.toString());
+                    return arrSurrSrNo.equals(arrNum);
+                })
+                .map(obj -> {
+                    // 1. Convert to Map
+                    LinkedHashMap<String, Object> map = objectMapper.convertValue(obj,
+                            new TypeReference<LinkedHashMap<String, Object>>() {
+                            });
+
+                    // 2. Format draftDateTime (Always present)
+                    formatField(map, "draftDateTime");
+
+                    // 3. Format lastUpdated (Optional - only formats if present)
+                    if (map.containsKey("lastUpdated") && map.get("lastUpdated") != null) {
+                        formatField(map, "lastUpdated");
+                    }
+
+                    return map;
+                })
+                .sorted((m1, m2) -> {
+                    // Use standard ISO parse for sorting (it handles both long and short strings)
+                    LocalDateTime d1 = LocalDateTime.parse(m1.get("draftDateTime").toString());
+                    LocalDateTime d2 = LocalDateTime.parse(m2.get("draftDateTime").toString());
+                    return d2.compareTo(d1);
+                })
+                .collect(Collectors.toList());
+
+        //Calculate total size and total pages
+        long totalSize = sortedDraftList.size();
+        long pageCount = (int) Math.ceil((double) totalSize / pageSize);
+
+        long skipCount = (long) pageNo * pageSize;
+
+        //Slice the list for the current page
+        List<LinkedHashMap<String, Object>> paginatedList = sortedDraftList.stream()
+                .skip(skipCount)
+                .limit(pageSize)
+                .collect(Collectors.toList());
+
+        //Response
+        return PageDomain.<List<LinkedHashMap<String, Object>>>builder()
+                .list(paginatedList)
+                .totalSize(totalSize)
+                .pageCount(pageCount)
+                .build();
+    }
+
+
     @Override
     public PageDomain<List<LinkedHashMap<String, Object>>> fetchAutosaveDraftList(AutosaveDomain request) {
 
-        if(!Constants.FINAL_MODULE_NAME_VALIDATION.equals(request.getModuleName())) {
-            //Extract pagination parameters with defaults
-            // Treat page 0 as the first page. If null, default to 0.
-            int pageNo = (request.getPageable().getPage() != null) ? request.getPageable().getPage() : 0;
-            // Ensure we don't go below 0
-            pageNo = Math.max(0, pageNo);
-
-            int pageSize = (request.getPageable().getPageSize() != null && request.getPageable().getPageSize() > 0) ? request.getPageable().getPageSize() : 10;
-
-            String psCd = request.getOfficeCd().toString();
-            String loginId = request.getLoginId();
-            String module = request.getModuleName();
-
-            String listKey = "AUTO-SAVE:POLICE-STATIONS:" + psCd + ":LOGIN-IDS:" + loginId + ":MODULES:" + module;
-
-            //Fetch all entries from the Hash
-            Map<Object, Object> allDraftsMap = redisJsonTemplate.opsForHash().entries(listKey);
-
-            if (allDraftsMap.isEmpty()) {
-                return PageDomain.<List<LinkedHashMap<String, Object>>>builder()
-                        .list(Collections.emptyList())
-                        .totalSize(0L)
-                        .pageCount(0L)
-                        .build();
-            }
-
-            //Map, Sort, and Slicing (Pagination)
-            List<LinkedHashMap<String, Object>> sortedDraftList = allDraftsMap.values().stream()
-                    .map(obj -> {
-                        // 1. Convert to Map
-                        LinkedHashMap<String, Object> map = objectMapper.convertValue(obj,
-                                new TypeReference<LinkedHashMap<String, Object>>() {
-                                });
-
-                        // 2. Format draftDateTime (Always present)
-                        formatField(map, "draftDateTime");
-
-                        // 3. Format lastUpdated (Optional - only formats if present)
-                        if (map.containsKey("lastUpdated") && map.get("lastUpdated") != null) {
-                            formatField(map, "lastUpdated");
-                        }
-
-                        return map;
-                    })
-                    .sorted((m1, m2) -> {
-                        // Use standard ISO parse for sorting (it handles both long and short strings)
-                        LocalDateTime d1 = LocalDateTime.parse(m1.get("draftDateTime").toString());
-                        LocalDateTime d2 = LocalDateTime.parse(m2.get("draftDateTime").toString());
-                        return d2.compareTo(d1);
-                    })
-                    .collect(Collectors.toList());
-
-            //Calculate total size and total pages
-            long totalSize = sortedDraftList.size();
-            long pageCount = (int) Math.ceil((double) totalSize / pageSize);
-
-            //Skip for 1 based pagination :
-           // long skipCount = (long) (pageNo - 1) * pageSize;
-
-            //Skip for 0 based pagination :
-            long skipCount = (long) pageNo * pageSize;
-
-            //Slice the list for the current page
-            List<LinkedHashMap<String, Object>> paginatedList = sortedDraftList.stream()
-                    .skip(skipCount)
-                    .limit(pageSize)
-                    .collect(Collectors.toList());
-
-            //Response
-            return PageDomain.<List<LinkedHashMap<String, Object>>>builder()
-                    .list(paginatedList)
-                    .totalSize(totalSize)
-                    .pageCount(pageCount)
-                    .build();
-        }
-        else {
-            // For Final Form :
-            if(request.getFirRegNum()==null){
-                throw new RuntimeException("For Final Form Autosave FIR Reg Num Is Mandatory");
-            }
-            //Extract pagination parameters with defaults
-            // Treat page 0 as the first page. If null, default to 0.
-            int pageNo = (request.getPageable().getPage() != null) ? request.getPageable().getPage() : 0;
-            // Ensure we don't go below 0
-            pageNo = Math.max(0, pageNo);
-
-            int pageSize = (request.getPageable().getPageSize() != null && request.getPageable().getPageSize() > 0) ? request.getPageable().getPageSize() : 10;
-
-            String psCd = request.getOfficeCd().toString();
-            String loginId = request.getLoginId();
-            String module = request.getModuleName();
-
-            //Added for final form :
-            Long firRegNum = request.getFirRegNum();
-
-            String listKey = "AUTO-SAVE:POLICE-STATIONS:" + psCd + ":LOGIN-IDS:" + loginId + ":MODULES:" + module;
-
-            //Fetch all entries from the Hash
-            Map<Object, Object> allDraftsMap = redisJsonTemplate.opsForHash().entries(listKey);
-
-            if (allDraftsMap.isEmpty()) {
-                return PageDomain.<List<LinkedHashMap<String, Object>>>builder()
-                        .list(Collections.emptyList())
-                        .totalSize(0L)
-                        .pageCount(0L)
-                        .build();
-            }
-
-            //Map, Sort, and Slicing (Pagination)
-            List<LinkedHashMap<String, Object>> sortedDraftList = allDraftsMap.values().stream().filter(obj -> {
-                        // Extract a temporary map to check the condition
-                        LinkedHashMap<String, Object> tempMap = objectMapper.convertValue(obj,
-                                new TypeReference<LinkedHashMap<String, Object>>() {});
-
-                        Object regNum = tempMap.get("firRegNum");
-                        if(regNum==null) {
-                          return false;
-                        }
-
-                        Long firNum = Long.parseLong(regNum.toString());
-                        return firRegNum.equals(firNum);
-                    })
-                    .map(obj -> {
-                        // 1. Convert to Map
-                        LinkedHashMap<String, Object> map = objectMapper.convertValue(obj,
-                                new TypeReference<LinkedHashMap<String, Object>>() {
-                                });
-
-                        // 2. Format draftDateTime (Always present)
-                        formatField(map, "draftDateTime");
-
-                        // 3. Format lastUpdated (Optional - only formats if present)
-                        if (map.containsKey("lastUpdated") && map.get("lastUpdated") != null) {
-                            formatField(map, "lastUpdated");
-                        }
-
-                        return map;
-                    })
-                    .sorted((m1, m2) -> {
-                        // Use standard ISO parse for sorting (it handles both long and short strings)
-                        LocalDateTime d1 = LocalDateTime.parse(m1.get("draftDateTime").toString());
-                        LocalDateTime d2 = LocalDateTime.parse(m2.get("draftDateTime").toString());
-                        return d2.compareTo(d1);
-                    })
-                    .collect(Collectors.toList());
-
-            //Calculate total size and total pages
-            long totalSize = sortedDraftList.size();
-            long pageCount = (int) Math.ceil((double) totalSize / pageSize);
-
-            long skipCount = (long) pageNo * pageSize;
-
-            //Slice the list for the current page
-            List<LinkedHashMap<String, Object>> paginatedList = sortedDraftList.stream()
-                    .skip(skipCount)
-                    .limit(pageSize)
-                    .collect(Collectors.toList());
-
-            //Response
-            return PageDomain.<List<LinkedHashMap<String, Object>>>builder()
-                    .list(paginatedList)
-                    .totalSize(totalSize)
-                    .pageCount(pageCount)
-                    .build();
-        }
+        return switch (request.getModuleName()) {
+            case Constants.FINAL_MODULE_NAME_VALIDATION -> fetchDrafListForFinalForm(request);
+            case Constants.ARREST_WARRANT_MODULE -> fetchDraftListForArrestWarrant(request);
+            case Constants.BAIL_CANCEL_MODULE -> fetchDraftListForBailCancellation(request);
+            case null, default -> fetchNormalDraft(request);
+        };
     }
 
     @Override

@@ -41,7 +41,13 @@ public class AutosaveDomain {
     private String draftId;
     private String moduleName; //Used for creating ,
 
+    //Unique Module
     private Long firRegNum; //Added for final Form
+    private Long arrSurrSrNo; //  Added for bail cancellation
+    private String accusedName; //  Added for bail cancellation
+    private Long accusedVid;
+
+
     private String complainantDraftName;
     private String mlcType;
     private String mlcSubType;

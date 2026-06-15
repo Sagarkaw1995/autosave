@@ -17,5 +17,8 @@ public class AutosaveCreateRequest extends CommonParamsDTO {
     @JsonProperty("module")
     private String moduleName;
 
-    private Long firRegNum;
+    private Long firRegNum; //Added for final Form
+    private Long arrSurrSrNo; //  Added for bail cancellation
+    private String accusedName; //  Added for bail cancellation
+    private Long accusedVid; //Added for arrest warrant
 }

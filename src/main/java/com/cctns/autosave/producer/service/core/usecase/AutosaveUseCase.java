@@ -2,10 +2,8 @@ package com.cctns.autosave.producer.service.core.usecase;
 
 import com.cctns.autosave.producer.service.core.domain.AutosaveDomain;
 import com.cctns.autosave.producer.service.core.domain.PageDomain;
-import com.cctns.autosave.producer.service.core.domain.PageableDomain;
 import com.cctns.autosave.producer.service.web.dto.response.AutosaveCreateResponse;
 import com.cctns.autosave.producer.service.web.dto.response.AutosaveDeleteResponse;
-import com.cctns.autosave.producer.service.web.dto.response.AutosaveDraftListResponse;
 import com.cctns.autosave.producer.service.web.dto.response.GetFormDataResponse;
 import com.cctns.autosave.producer.service.web.dto.response.UpdateResponseDto;
 
