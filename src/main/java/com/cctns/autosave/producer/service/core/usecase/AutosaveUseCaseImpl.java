@@ -709,6 +709,58 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
         };
     }
 
+    private List<LinkedHashMap<String, Object>> fetchNormalDraftWithoutPagination(AutosaveDomain request) {
+
+        String psCd = request.getOfficeCd().toString();
+        String loginId = request.getLoginId();
+        String module = request.getModuleName();
+
+        String listKey = "AUTO-SAVE:POLICE-STATIONS:" + psCd + ":LOGIN-IDS:" + loginId + ":MODULES:" + module;
+
+        //Fetch all entries from the Hash
+        Map<Object, Object> allDraftsMap = redisJsonTemplate.opsForHash().entries(listKey);
+
+//        if (!allDraftsMap.isEmpty() && request.getModuleName().equals(Constants.FIR)) {
+//            allDraftsMap.put("status", "Draft");
+//        }
+
+        //Map, Sort, and Slicing (Pagination)
+        return allDraftsMap.values().stream()
+                .map(obj -> {
+                    // Convert to Map
+                    LinkedHashMap<String, Object> map = objectMapper.convertValue(obj,
+                            new TypeReference<LinkedHashMap<String, Object>>() {
+                            });
+
+                    if (Constants.FIR.equals(request.getModuleName())) {
+                        map.put("status", "Draft");
+                    }
+
+                    // Format draftDateTime (Always present)
+                    formatField(map, "draftDateTime");
+
+                    // Format lastUpdated (Optional - only formats if present)
+                    if (map.containsKey("lastUpdated") && map.get("lastUpdated") != null) {
+                        formatField(map, "lastUpdated");
+                    }
+
+                    return map;
+                })
+                .sorted((m1, m2) -> {
+                    // Use standard ISO parse for sorting (it handles both long and short strings)
+                    LocalDateTime d1 = LocalDateTime.parse(m1.get("draftDateTime").toString());
+                    LocalDateTime d2 = LocalDateTime.parse(m2.get("draftDateTime").toString());
+                    return d2.compareTo(d1);
+                })
+                .collect(Collectors.toList());
+    }
+
+
+    @Override
+    public List<LinkedHashMap<String, Object>> fetchAutosaveDraftListWithoutPagination(AutosaveDomain request) {
+        return fetchNormalDraftWithoutPagination(request);
+    }
+
     @Override
     public AutosaveDeleteResponse deleteAutosaveDraftList(AutosaveDomain request) {
         String psCd = request.getOfficeCd().toString();

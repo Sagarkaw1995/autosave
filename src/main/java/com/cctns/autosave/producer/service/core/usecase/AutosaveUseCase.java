@@ -14,6 +14,7 @@ public interface AutosaveUseCase {
 
     /**
      * Creates a new autosave draft
+     *
      * @param request Autosave domain
      * @return New created autosave data
      */
@@ -21,6 +22,7 @@ public interface AutosaveUseCase {
 
     /**
      * Persists the key value pair in redis cache
+     *
      * @param request (AutosaveDomain)
      * @return AutosaveDomain
      */
@@ -28,21 +30,31 @@ public interface AutosaveUseCase {
 
     /**
      * Fetches the persisted key value pair from redi / AWS
+     *
      * @param request (AutosaveDomain)
      * @return AutosaveDomain
      */
     GetFormDataResponse fetchAutosaveData(AutosaveDomain request);
 
     /**
-     * Fetches autosave draft list from redis
+     * Fetches autosave draft list from redis with pagination
+     *
      * @param request Autosave domain
      */
-  PageDomain<List<LinkedHashMap<String, Object>>> fetchAutosaveDraftList(AutosaveDomain request);
+    PageDomain<List<LinkedHashMap<String, Object>>> fetchAutosaveDraftList(AutosaveDomain request);
+
+    /**
+     * Fetches autosave draft list from redis without pagination
+     *
+     * @param request Autosave domain
+     */
+    List<LinkedHashMap<String, Object>> fetchAutosaveDraftListWithoutPagination(AutosaveDomain request);
 
     /**
      * Deletes autosave draft
+     *
      * @param request Autosave draft
      * @return
      */
-  AutosaveDeleteResponse deleteAutosaveDraftList(AutosaveDomain request);
+    AutosaveDeleteResponse deleteAutosaveDraftList(AutosaveDomain request);
 }
