@@ -734,6 +734,7 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
 
                     if (Constants.FIR.equals(request.getModuleName())) {
                         map.put("status", "Draft");
+                        map.put("statusCd", 1);
                     }
 
                     // Format draftDateTime (Always present)
