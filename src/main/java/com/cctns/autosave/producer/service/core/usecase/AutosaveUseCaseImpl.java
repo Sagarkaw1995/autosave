@@ -43,11 +43,8 @@ import java.util.stream.Collectors;
 @Slf4j
 public class AutosaveUseCaseImpl implements AutosaveUseCase{
 
-    @Value("${autosave.fail-safe.ttl}")
-    private Long failSafeTtl;
-
-    @Value("${autosave.z-set.ttl}")
-    private Long zSetTtl;
+    @Value("${autosave-env-name}")
+    private String envName;
 
     @Qualifier("redisJsonTemplate")
     private final RedisTemplate<String,LinkedHashMap<String,Object>> redisJsonTemplate;
@@ -67,85 +64,6 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
         this.microserviceComms = microserviceComms;
         this.autosaveRepository = autosaveRepository;
         this.objectMapper = objectMapper;
-    }
-
-    /**
-     * Validates the draft Number format : moduleName_SaveNumber_{shardTag}
-     * @param draftNum (Draft Number)
-     */
-    private void validateDraftNumber(String draftNum) {
-        if (draftNum == null || draftNum.isBlank() || !draftNum.matches(Constants.VALIDATION_EXPRESSION)) {
-            throw new InvalidDraftNumberFormat("Draft Number Is Not Valid");
-        }
-    }
-
-    /**
-     * Generates The Draft Number For The Autosave Service
-     * @param moduleName (Name of the module name)
-     * @param saveNum (Save Number)
-     * @return String value of the generated Draft Number
-     */
-    private String generateDraftNumber(String moduleName, Long saveNum, Integer shardTag) {
-        if (moduleName == null || moduleName.isBlank()) {
-            throw new IllegalArgumentException("Module name cannot be null or blank");
-        }
-        if (saveNum == null || saveNum < 0) {
-            throw new IllegalArgumentException("Save number must be non-negative");
-        }
-        if (shardTag == null || shardTag < 0 || shardTag >= Constants.SHARD_COUNT) {
-            throw new IllegalArgumentException("Invalid shard tag: " + shardTag);
-        }
-        String draftNumber = String.join(
-                Constants.DRAFT_NUMBER_DELIMITER,
-                moduleName,
-                saveNum.toString(),
-                Constants.SHARD_TAG_START + shardTag + Constants.SHARD_TAG_END
-        );
-        validateDraftNumber(draftNumber);
-        return draftNumber;
-    }
-
-    /**
-     * Generates the key name for the Z-SET (Redis Data-structure )
-     * @return String (Z-Set key name)
-     */
-    private String generateZSetNumber(Integer shardTag) {
-        return "AUTOSAVE:EXPIRY:" + Constants.SHARD_TAG_START + shardTag.toString() + Constants.SHARD_TAG_END;
-    }
-
-
-    /**
-     * Breaks the draft number
-     * @param draftNumber (Draft Number)
-     * @return DraftNumberDomain Value object
-     */
-    private DraftNumberDomain breakDraftNumber(String draftNumber) {
-        validateDraftNumber(draftNumber);
-
-        Pattern pattern = Pattern.compile("([A-Z]+)_(\\d+)_\\{(\\d+)}");
-        Matcher matcher = pattern.matcher(draftNumber);
-
-        if (!matcher.matches()) {
-            throw new InvalidDraftNumberFormat("Invalid draft number: " + draftNumber);
-        }
-
-        String module = matcher.group(1);
-        Long saveNum = Long.parseLong(matcher.group(2));
-        Integer shard = Integer.parseInt(matcher.group(3));
-
-        return new DraftNumberDomain(module, saveNum, shard);
-    }
-
-    /**
-     * Processes the shard tag for a particular SaveNum
-     * @param saveNum (Save Number)
-     * @return Integer value of the shard
-     */
-    private Integer getShard(Long saveNum) {
-        if (saveNum == null) {
-            throw new SaveNumCannotBeNullException("SaveNum Is Null");
-        }
-        return (int) (saveNum % Constants.SHARD_COUNT);
     }
 
     /**
@@ -175,22 +93,22 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
         String tag = "{" + psCd + "}";
         String draftId = UUID.randomUUID().toString();
 
-        //Module-Specific Counter For Serial Number
-        String seqKey = "AUTO-SAVE:SEQ:" + psCd + ":" + loginId + ":" + module + "_" + tag;
+        //Module-Specific Counter For Serial Number :
+        String seqKey = envName+":AUTO-SAVE:SEQ:" + psCd + ":" + loginId + ":" + module + "_" + tag;
         Long srNo = redisZSetTemplate.opsForValue().increment(seqKey);
 
         //Hierarchy Navigation
         //Police station set
-        redisZSetTemplate.opsForSet().add("AUTO-SAVE:POLICE-STATIONS", psCd);
+        redisZSetTemplate.opsForSet().add(envName+":AUTO-SAVE:POLICE-STATIONS", psCd);
 
         //Users Set
-        redisZSetTemplate.opsForSet().add("AUTO-SAVE:POLICE-STATIONS:" + psCd + ":LOGIN-IDS", loginId);
+        redisZSetTemplate.opsForSet().add(envName+":AUTO-SAVE:POLICE-STATIONS:" + psCd + ":LOGIN-IDS", loginId);
 
         //Module Set
-        redisZSetTemplate.opsForSet().add("AUTO-SAVE:POLICE-STATIONS:" + psCd + ":LOGIN-IDS:" + loginId + ":MODULES", module);
+        redisZSetTemplate.opsForSet().add(envName+":AUTO-SAVE:POLICE-STATIONS:" + psCd + ":LOGIN-IDS:" + loginId + ":MODULES", module);
 
         //Draft List Metadata : List of draft
-        String listKey = "AUTO-SAVE:POLICE-STATIONS:" + psCd + ":LOGIN-IDS:" + loginId + ":MODULES:" + module;
+        String listKey = envName+":AUTO-SAVE:POLICE-STATIONS:" + psCd + ":LOGIN-IDS:" + loginId + ":MODULES:" + module;
 
         LinkedHashMap<String, Object> gridMeta = new LinkedHashMap<>();
         gridMeta.put("draftNum",srNo+"/"+LocalDateTime.now().getYear());
@@ -222,7 +140,7 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
 
 
         // Actual Heavy Draft Data (String) - The "Big Payload"
-        String dataKey = "AUTO-SAVE:DRAFT-DATA:" + draftId + "_" + tag;
+        String dataKey = envName+":AUTO-SAVE:DRAFT-DATA:" + draftId + "_" + tag;
         redisJsonTemplate.opsForValue().set(dataKey, dataWrapper);
 
         AutosaveCreateResponse responseDto = new AutosaveCreateResponse();
@@ -254,8 +172,8 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
         String draftId = request.getDraftId();
 
         String tag = "{" + psCd + "}";
-        String listKey = "AUTO-SAVE:POLICE-STATIONS:" + psCd + ":LOGIN-IDS:" + loginId + ":MODULES:" + module;
-        String dataKey = "AUTO-SAVE:DRAFT-DATA:" + draftId + "_" + tag;
+        String listKey = envName+":AUTO-SAVE:POLICE-STATIONS:" + psCd + ":LOGIN-IDS:" + loginId + ":MODULES:" + module;
+        String dataKey = envName+":AUTO-SAVE:DRAFT-DATA:" + draftId + "_" + tag;
 
         validateDraftExists(listKey, draftId);
 
@@ -295,7 +213,7 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
         String psCd = request.getOfficeCd().toString();
         String draftId = request.getDraftId();
         String tag = "{" + psCd + "}";
-        String dataKey = "AUTO-SAVE:DRAFT-DATA:" + draftId + "_" + tag;
+        String dataKey = envName+":AUTO-SAVE:DRAFT-DATA:" + draftId + "_" + tag;
 
         // 1. Fetch the Wrapper Object
         Object rawWrapper = redisJsonTemplate.opsForValue().get(dataKey);
@@ -361,7 +279,7 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
         //Added for final form :
         Long firRegNum = request.getFirRegNum();
 
-        String listKey = "AUTO-SAVE:POLICE-STATIONS:" + psCd + ":LOGIN-IDS:" + loginId + ":MODULES:" + module;
+        String listKey = envName+":AUTO-SAVE:POLICE-STATIONS:" + psCd + ":LOGIN-IDS:" + loginId + ":MODULES:" + module;
 
         //Fetch all entries from the Hash
         Map<Object, Object> allDraftsMap = redisJsonTemplate.opsForHash().entries(listKey);
@@ -450,7 +368,7 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
         String loginId = request.getLoginId();
         String module = request.getModuleName();
 
-        String listKey = "AUTO-SAVE:POLICE-STATIONS:" + psCd + ":LOGIN-IDS:" + loginId + ":MODULES:" + module;
+        String listKey = envName+":AUTO-SAVE:POLICE-STATIONS:" + psCd + ":LOGIN-IDS:" + loginId + ":MODULES:" + module;
 
         //Fetch all entries from the Hash
         Map<Object, Object> allDraftsMap = redisJsonTemplate.opsForHash().entries(listKey);
@@ -534,7 +452,7 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
         //Added for Arrest Warrant form :
         Long accusedVid = request.getAccusedVid();
 
-        String listKey = "AUTO-SAVE:POLICE-STATIONS:" + psCd + ":LOGIN-IDS:" + loginId + ":MODULES:" + module;
+        String listKey = envName+":AUTO-SAVE:POLICE-STATIONS:" + psCd + ":LOGIN-IDS:" + loginId + ":MODULES:" + module;
 
         //Fetch all entries from the Hash
         Map<Object, Object> allDraftsMap = redisJsonTemplate.opsForHash().entries(listKey);
@@ -626,7 +544,7 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
         //Added for final form :
         Long arrSurrSrNo = request.getArrSurrSrNo();
 
-        String listKey = "AUTO-SAVE:POLICE-STATIONS:" + psCd + ":LOGIN-IDS:" + loginId + ":MODULES:" + module;
+        String listKey = envName+":AUTO-SAVE:POLICE-STATIONS:" + psCd + ":LOGIN-IDS:" + loginId + ":MODULES:" + module;
 
         //Fetch all entries from the Hash
         Map<Object, Object> allDraftsMap = redisJsonTemplate.opsForHash().entries(listKey);
@@ -715,7 +633,7 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
         String loginId = request.getLoginId();
         String module = request.getModuleName();
 
-        String listKey = "AUTO-SAVE:POLICE-STATIONS:" + psCd + ":LOGIN-IDS:" + loginId + ":MODULES:" + module;
+        String listKey = envName+":AUTO-SAVE:POLICE-STATIONS:" + psCd + ":LOGIN-IDS:" + loginId + ":MODULES:" + module;
 
         //Fetch all entries from the Hash
         Map<Object, Object> allDraftsMap = redisJsonTemplate.opsForHash().entries(listKey);
@@ -771,8 +689,8 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
 
         //Reconstruct the Keys
         String tag = "{" + psCd + "}";
-        String listKey = "AUTO-SAVE:POLICE-STATIONS:" + psCd + ":LOGIN-IDS:" + loginId + ":MODULES:" + module;
-        String dataKey = "AUTO-SAVE:DRAFT-DATA:" + draftId + "_" + tag;
+        String listKey = envName+":AUTO-SAVE:POLICE-STATIONS:" + psCd + ":LOGIN-IDS:" + loginId + ":MODULES:" + module;
+        String dataKey = envName+":AUTO-SAVE:DRAFT-DATA:" + draftId + "_" + tag;
 
         validateDraftExists( listKey,  draftId);
 
