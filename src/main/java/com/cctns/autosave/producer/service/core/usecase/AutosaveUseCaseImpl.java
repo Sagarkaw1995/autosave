@@ -2,19 +2,14 @@ package com.cctns.autosave.producer.service.core.usecase;
 
 import com.cctns.autosave.producer.service.constants.Constants;
 import com.cctns.autosave.producer.service.core.domain.AutosaveDomain;
-import com.cctns.autosave.producer.service.core.domain.DraftNumberDomain;
 import com.cctns.autosave.producer.service.core.domain.PageDomain;
 import com.cctns.autosave.producer.service.core.exception.DraftIdNotFoundException;
-import com.cctns.autosave.producer.service.core.exception.InvalidDraftNumberFormat;
 import com.cctns.autosave.producer.service.core.exception.InvalidDraftRequestException;
 import com.cctns.autosave.producer.service.core.exception.NoAutoSaveDataFoundException;
-import com.cctns.autosave.producer.service.core.exception.SaveNumCannotBeNullException;
 import com.cctns.autosave.producer.service.core.external.port.MicroserviceComms;
 import com.cctns.autosave.producer.service.core.repository.AutosaveRepository;
 import com.cctns.autosave.producer.service.web.dto.response.AutosaveCreateResponse;
 import com.cctns.autosave.producer.service.web.dto.response.AutosaveDeleteResponse;
-import com.cctns.autosave.producer.service.web.dto.response.AutosaveDraftListResponse;
-import com.cctns.autosave.producer.service.web.dto.response.AutosaveResponseDto;
 import com.cctns.autosave.producer.service.web.dto.response.GetFormDataResponse;
 import com.cctns.autosave.producer.service.web.dto.response.UpdateResponseDto;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -23,21 +18,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -120,7 +108,9 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
         }
         if (Constants.ARREST_WARRANT_MODULE.equals(request.getModuleName()) && request.getAccusedVid() != null) {
             String accusedVid = request.getAccusedVid().toString();
+            String accusedName = request.getAccusedName();
             gridMeta.put("accusedVid", accusedVid);
+            gridMeta.put("accusedName", accusedName);
         }
         if (Constants.BAIL_CANCEL_MODULE.equals(request.getModuleName()) && request.getArrSurrSrNo() != null) {
             String arrSurrSrNo = request.getArrSurrSrNo().toString();
