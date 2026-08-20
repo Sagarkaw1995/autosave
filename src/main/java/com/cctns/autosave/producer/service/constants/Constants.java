@@ -90,4 +90,5 @@ public class Constants {
     public static final String FINAL_MODULE_NAME_VALIDATION = "FINALR";
     public static final String BAIL_CANCEL_MODULE = "BAIL/CANCELLATION";
     public static final String ARREST_WARRANT_MODULE = "ARREST_WARRANT";
+    public static final String SCRIPT_REGEX = "<[^>]*>";
 }
