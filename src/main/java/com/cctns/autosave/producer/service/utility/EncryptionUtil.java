@@ -52,7 +52,7 @@ public class EncryptionUtil {
             keyBytes = normalizeKeyBytes(keyBytes);
             secretKey = new SecretKeySpec(keyBytes, Constants.ENCRYPTION);
         } catch (Exception e) {
-            e.printStackTrace();
+            //e.printStackTrace();
             throw new EncryptionFailedException(Constants.SECRET_KEY_INIT_FAILED_EX);
         }
     }
