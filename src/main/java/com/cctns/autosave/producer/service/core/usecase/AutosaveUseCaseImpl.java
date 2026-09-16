@@ -1,6 +1,11 @@
 package com.cctns.autosave.producer.service.core.usecase;
 
+import com.cctns.autosave.producer.service.constants.AutosaveGridField;
+import com.cctns.autosave.producer.service.constants.AutosaveRedisKeySchema;
 import com.cctns.autosave.producer.service.constants.Constants;
+import com.cctns.autosave.producer.service.constants.GridMetaBuilder;
+import com.cctns.autosave.producer.service.constants.Module;
+import com.cctns.autosave.producer.service.constants.RedisKey;
 import com.cctns.autosave.producer.service.core.domain.AutosaveDomain;
 import com.cctns.autosave.producer.service.core.domain.PageDomain;
 import com.cctns.autosave.producer.service.core.exception.DraftIdNotFoundException;
@@ -45,146 +50,162 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
     private final ObjectMapper objectMapper;
     private static final DateTimeFormatter FORMATTER =
             DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SS");
+    private final AutosaveRedisKeySchema autosaveRedisKeySchema;
 
-    public AutosaveUseCaseImpl(RedisTemplate<String,LinkedHashMap<String,Object>> redisJsonTemplate, RedisTemplate<String, String> redisZSetTemplate, MicroserviceComms microserviceComms, AutosaveRepository autosaveRepository, ObjectMapper objectMapper) {
+    public AutosaveUseCaseImpl(RedisTemplate<String,LinkedHashMap<String,Object>> redisJsonTemplate, RedisTemplate<String, String> redisZSetTemplate, MicroserviceComms microserviceComms, AutosaveRepository autosaveRepository, ObjectMapper objectMapper, AutosaveRedisKeySchema autosaveRedisKeySchema) {
         this.redisJsonTemplate = redisJsonTemplate;
         this.redisZSetTemplate = redisZSetTemplate;
         this.microserviceComms = microserviceComms;
         this.autosaveRepository = autosaveRepository;
         this.objectMapper = objectMapper;
+        this.autosaveRedisKeySchema = autosaveRedisKeySchema;
     }
 
     /**
-     * Add the data hierarchy order pscd -> login -> module Name -> draft list
+     * {@inheritDoc}
      * @param request
      * @return
      */
     @Override
-    public AutosaveCreateResponse sentinelPersist(AutosaveDomain request){
+    public AutosaveCreateResponse createDraft(AutosaveDomain request) {
 
-        if (Constants.FINAL_MODULE_NAME_VALIDATION.equals(request.getModuleName()) && request.getFirRegNum() == null) {
-            throw new InvalidDraftRequestException("For Final Form Autosave FIR Reg Num Is Mandatory");
-        }
-
-        if (Constants.ARREST_WARRANT_MODULE.equals(request.getModuleName()) && request.getAccusedVid() == null) {
-            throw new InvalidDraftRequestException("For Arrest Warrant Autosave Accused Vid Num Is Mandatory");
-        }
-
-        if (Constants.BAIL_CANCEL_MODULE.equals(request.getModuleName()) && request.getArrSurrSrNo() == null) {
-            throw new InvalidDraftRequestException("For Bail Cancellation Autosave Arrest Num Is Mandatory");
-        }
+        Module module = Module.fromModuleName(request.getModuleName());
 
         String psCd = request.getOfficeCd().toString();
         String loginId = request.getLoginId();
-        String module = request.getModuleName();
-
-        String tag = "{" + psCd + "}";
+        String moduleName = request.getModuleName();
         String draftId = UUID.randomUUID().toString();
+        LocalDateTime now = LocalDateTime.now();
 
-        //Module-Specific Counter For Serial Number :
-        String seqKey = envName+":AUTO-SAVE:SEQ:" + psCd + ":" + loginId + ":" + module + "_" + tag;
-        Long srNo = redisZSetTemplate.opsForValue().increment(seqKey);
+        // Generate Redis sequence key
+        RedisKey seqKey = autosaveRedisKeySchema.sequenceKey(psCd, loginId, moduleName);
+        Long srNo = redisZSetTemplate.opsForValue().increment(seqKey.value());
 
-        //Hierarchy Navigation
-        //Police station set
-        redisZSetTemplate.opsForSet().add(envName+":AUTO-SAVE:POLICE-STATIONS", psCd);
+        // Generating redis hierarchy
+        redisZSetTemplate.opsForSet().add(autosaveRedisKeySchema.policeStationsSetKey().value(), psCd);
+        redisZSetTemplate.opsForSet().add(autosaveRedisKeySchema.loginIdsSetKey(psCd).value(), loginId);
+        redisZSetTemplate.opsForSet().add(autosaveRedisKeySchema.modulesSetKey(psCd, loginId).value(), moduleName);
 
-        //Users Set
-        redisZSetTemplate.opsForSet().add(envName+":AUTO-SAVE:POLICE-STATIONS:" + psCd + ":LOGIN-IDS", loginId);
+        RedisKey listKey = autosaveRedisKeySchema.draftListKey(psCd, loginId, moduleName);
 
-        //Module Set
-        redisZSetTemplate.opsForSet().add(envName+":AUTO-SAVE:POLICE-STATIONS:" + psCd + ":LOGIN-IDS:" + loginId + ":MODULES", module);
+        String draftNum = srNo + "/" + now.getYear();
 
-        //Draft List Metadata : List of draft
-        String listKey = envName+":AUTO-SAVE:POLICE-STATIONS:" + psCd + ":LOGIN-IDS:" + loginId + ":MODULES:" + module;
+        LinkedHashMap<String, Object> gridMeta = GridMetaBuilder.forCreate(module)
+                //Common draft fields
+                .set(AutosaveGridField.DRAFT_NUM, draftNum)
+                .set(AutosaveGridField.DRAFT_SRNO, srNo)
+                .set(AutosaveGridField.DRAFT_ID, draftId)
+                .set(AutosaveGridField.DRAFT_DATE_TIME, now.format(FORMATTER))
+                //Module Specific draft fields
+                .set(AutosaveGridField.FIR_REG_NUM, request.getFirRegNum())
+                .set(AutosaveGridField.ACCUSED_VID, request.getAccusedVid())
+                .set(AutosaveGridField.ACCUSED_NAME, request.getAccusedName())
+                .set(AutosaveGridField.ARR_SURR_SR_NO, request.getArrSurrSrNo())
+                .build();
 
-        LinkedHashMap<String, Object> gridMeta = new LinkedHashMap<>();
-        gridMeta.put("draftNum",srNo+"/"+LocalDateTime.now().getYear());
-        gridMeta.put("draftSrno", srNo);
-        gridMeta.put("draftId", draftId);
-        if(Constants.FINAL_MODULE_NAME_VALIDATION.equals(request.getModuleName()) && request.getFirRegNum()!=null) {
-            String firRegNum = request.getFirRegNum().toString();
-            gridMeta.put("firRegNum", firRegNum);
-        }
-        if (Constants.ARREST_WARRANT_MODULE.equals(request.getModuleName()) && request.getAccusedVid() != null) {
-            String accusedVid = request.getAccusedVid().toString();
-            String accusedName = request.getAccusedName();
-            gridMeta.put("accusedVid", accusedVid);
-            gridMeta.put("accusedName", accusedName);
-        }
-        if (Constants.BAIL_CANCEL_MODULE.equals(request.getModuleName()) && request.getArrSurrSrNo() != null) {
-            String arrSurrSrNo = request.getArrSurrSrNo().toString();
-            String accusedName = request.getAccusedName();
-            gridMeta.put("arrSurrSrNo", arrSurrSrNo);
-            gridMeta.put("accusedName", accusedName);
-        }
-        gridMeta.put("draftDateTime", LocalDateTime.now().format(FORMATTER));
+        redisJsonTemplate.opsForHash().put(listKey.value(), draftId, gridMeta);
 
-        // Use your JSON template for the Metadata Map
-        redisJsonTemplate.opsForHash().put(listKey, draftId, gridMeta);
-
-        //Added hybrid Data-Wrapper for draftNum and other fields :
+        //Store Json Data with the redis data key with the json wrapper
+        RedisKey dataKey = autosaveRedisKeySchema.draftDataKey(draftId, psCd);
         LinkedHashMap<String, Object> dataWrapper = new LinkedHashMap<>();
-        dataWrapper.put("draftNum", srNo+"/"+LocalDateTime.now().getYear()); // <--- Persisted here too!
-        dataWrapper.put("jsonData", request.getJsonData());
-
-
-        // Actual Heavy Draft Data (String) - The "Big Payload"
-        String dataKey = envName+":AUTO-SAVE:DRAFT-DATA:" + draftId + "_" + tag;
-        redisJsonTemplate.opsForValue().set(dataKey, dataWrapper);
+        dataWrapper.put(AutosaveGridField.DRAFT_NUM.getKey(), draftNum);
+        dataWrapper.put(AutosaveGridField.JSON_DATA.getKey(), request.getJsonData());
+        redisJsonTemplate.opsForValue().set(dataKey.value(), dataWrapper);
 
         AutosaveCreateResponse responseDto = new AutosaveCreateResponse();
         responseDto.setMessage("New Draft Created Successfully");
         responseDto.setDraftId(draftId);
         responseDto.setDraftSrno(srNo.toString());
-        responseDto.setDraftDateTime(LocalDateTime.now());
-        responseDto.setDraftNum(srNo+"/"+LocalDateTime.now().getYear());
+        responseDto.setDraftDateTime(now);
+        responseDto.setDraftNum(draftNum);
         return responseDto;
     }
 
-    private void validateDraftExists(String listKey, String draftId) {
-        Boolean exists = redisJsonTemplate.opsForHash().hasKey(listKey, draftId);
+    /**
+     * Checks if the draft key already exists or not.
+     * @param listKey Redis list key
+     * @param draftId Redis draft Id
+     */
+    private void validateDraftExists(RedisKey listKey, String draftId) {
+        Boolean exists = redisJsonTemplate.opsForHash().hasKey(listKey.value(), draftId);
         if (Boolean.FALSE.equals(exists)) {
             throw new DraftIdNotFoundException("Draft Id Not Found");
         }
     }
 
+
     /**
-     * Persists the autosave data
+     * Fetches gridMeta for a draft, centralizing the unchecked cast in one
+     * place. If Redis ever returns something that isn't a LinkedHashMap
+     * (corrupted data, a schema change elsewhere), this throws a clear,
+     * specific exception here — instead of a raw ClassCastException
+     * surfacing three statements later from whatever line happens to use it.
+     */
+    @SuppressWarnings("unchecked")
+    private LinkedHashMap<String, Object> fetchGridMeta(RedisKey listKey, String draftId) {
+        Object raw = redisJsonTemplate.opsForHash().get(listKey.value(), draftId);
+        if (raw == null) {
+            return null;
+        }
+        if (!(raw instanceof LinkedHashMap)) {
+            throw new IllegalStateException(
+                    "Unexpected gridMeta type in Redis for draftId=" + draftId + ": " + raw.getClass());
+        }
+        return (LinkedHashMap<String, Object>) raw;
+    }
+
+    /**
+     * Persists the autosave data.
      * @param request (AutosaveDomain)
-     * @return AutosaveDomain
+     * @return UpdateResponseDto
      */
     @Override
     public UpdateResponseDto persistAutosaveData(AutosaveDomain request) {
+
+        Module module = Module.fromModuleName(request.getModuleName());
+
         String psCd = request.getOfficeCd().toString();
         String loginId = request.getLoginId();
-        String module = request.getModuleName();
+        String moduleName = request.getModuleName();
         String draftId = request.getDraftId();
 
-        String tag = "{" + psCd + "}";
-        String listKey = envName+":AUTO-SAVE:POLICE-STATIONS:" + psCd + ":LOGIN-IDS:" + loginId + ":MODULES:" + module;
-        String dataKey = envName+":AUTO-SAVE:DRAFT-DATA:" + draftId + "_" + tag;
+
+        // Keys built through the same schema createDraft uses — structurally
+        // impossible for the two flows to disagree on key shape now.
+        RedisKey listKey = autosaveRedisKeySchema.draftListKey(psCd, loginId, moduleName);
+        RedisKey dataKey = autosaveRedisKeySchema.draftDataKey(draftId, psCd);
 
         validateDraftExists(listKey, draftId);
 
-        // 1. Fetch existing Metadata to get the original draftNum
-        LinkedHashMap<String, Object> gridMeta = (LinkedHashMap<String, Object>) redisJsonTemplate.opsForHash().get(listKey, draftId);
+        // 1. Fetch existing metadata — cast is centralized and guarded, not inline
+        LinkedHashMap<String, Object> gridMeta = fetchGridMeta(listKey, draftId);
 
         if (gridMeta != null) {
-            gridMeta.put("complainantDraftName", request.getComplainantDraftName());
-            gridMeta.put("mlcType", request.getMlcType());
-            gridMeta.put("mlcSubType", request.getMlcSubType());
-            gridMeta.put("lastUpdated", LocalDateTime.now().format(FORMATTER));
 
-            redisJsonTemplate.opsForHash().put(listKey, draftId, gridMeta);
+            // 2. Apply ONLY this module's updatable fields onto the existing
+            // map. A field not in module.getUpdatableFields() (e.g. mlcType
+            // on a non-MLC draft) throws immediately here instead of silently
+            // writing into a record it doesn't belong to. Create-only fields
+            // (draftId, draftNum, draftSrno) are never touched, since
+            // updatableFields never contains them.
+            GridMetaBuilder.forUpdate(module)
+                    .set(AutosaveGridField.COMPLAINANT_NAME, request.getComplainantDraftName())
+                    .set(AutosaveGridField.MLC_TYPE, request.getMlcType())
+                    .set(AutosaveGridField.MLC_SUB_TYPE, request.getMlcSubType())
+                    .set(AutosaveGridField.ACCUSED_NAME, request.getAccusedName())
+                    .set(AutosaveGridField.LAST_UPDATED, LocalDateTime.now().format(FORMATTER))
+                    .applyTo(gridMeta);
 
-            // 2. RE-WRAP the data: Keep the original draftNum, update the jsonData
+            redisJsonTemplate.opsForHash().put(listKey.value(), draftId, gridMeta);
+
+            // 3. Re-wrap: preserve original draftNum, update jsonData —
+            // both keys read via the enum, never a raw string literal
             LinkedHashMap<String, Object> dataWrapper = new LinkedHashMap<>();
-            dataWrapper.put("draftNum", gridMeta.get("draftNum")); // Preserve original number
-            dataWrapper.put("jsonData", request.getJsonData());
+            dataWrapper.put(AutosaveGridField.DRAFT_NUM.getKey(), gridMeta.get(AutosaveGridField.DRAFT_NUM.getKey()));
+            dataWrapper.put(AutosaveGridField.JSON_DATA.getKey(), request.getJsonData());
 
-            // 3. Save the wrapper back to Redis
-            redisJsonTemplate.opsForValue().set(dataKey, dataWrapper);
+            // 4. Save the wrapper back to Redis
+            redisJsonTemplate.opsForValue().set(dataKey.value(), dataWrapper);
         }
 
         UpdateResponseDto responseDto = new UpdateResponseDto();
@@ -610,7 +631,7 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
     public PageDomain<List<LinkedHashMap<String, Object>>> fetchAutosaveDraftList(AutosaveDomain request) {
 
         return switch (request.getModuleName()) {
-            case Constants.FINAL_MODULE_NAME_VALIDATION -> fetchDrafListForFinalForm(request);
+            case Constants.FINAL_FORM_MODULE_NAME_VALIDATION -> fetchDrafListForFinalForm(request);
             case Constants.ARREST_WARRANT_MODULE -> fetchDraftListForArrestWarrant(request);
             case Constants.BAIL_CANCEL_MODULE -> fetchDraftListForBailCancellation(request);
             case null, default -> fetchNormalDraft(request);
@@ -670,33 +691,56 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
         return fetchNormalDraftWithoutPagination(request);
     }
 
-    @Override
-    public AutosaveDeleteResponse deleteAutosaveDraftList(AutosaveDomain request) {
-        String psCd = request.getOfficeCd().toString();
-        String loginId = request.getLoginId();
-        String module = request.getModuleName();
-        String draftId = request.getDraftId();
+    /**
+     * Builds the delete response, distinguishing three outcomes instead
+     * of collapsing them into a binary success/failure:
+     *   FULL    — both the list entry AND the data payload were removed
+     *   PARTIAL — only one of the two was removed (the other was already
+     *             gone, or something went wrong) — logged as a warning,
+     *             since an orphaned dataKey or a dangling list entry both
+     *             indicate state that should be looked at, even though the
+     *             caller's immediate request technically "did something"
+     *   NONE    — neither existed; nothing to delete
+     */
+    private AutosaveDeleteResponse buildDeleteResponse(String draftId, Long hashRemoved, Boolean dataRemoved) {
+        boolean hashDeleted = hashRemoved != null && hashRemoved > 0;
+        boolean dataDeleted = dataRemoved != null && dataRemoved;
 
-        //Reconstruct the Keys
-        String tag = "{" + psCd + "}";
-        String listKey = envName+":AUTO-SAVE:POLICE-STATIONS:" + psCd + ":LOGIN-IDS:" + loginId + ":MODULES:" + module;
-        String dataKey = envName+":AUTO-SAVE:DRAFT-DATA:" + draftId + "_" + tag;
-
-        validateDraftExists( listKey,  draftId);
-
-        //Remove the specific draft from the Module's Hash List
-        Long hashRemoved = redisJsonTemplate.opsForHash().delete(listKey, draftId);
-        //Remove the actual heavy JSON payload string
-        Boolean dataRemoved = redisJsonTemplate.delete(dataKey);
-        //Prepare Standardized Response
         AutosaveDeleteResponse response = new AutosaveDeleteResponse();
-        if (hashRemoved > 0 || (dataRemoved != null && dataRemoved)) {
+        response.setDraftId(draftId);
+
+        if (hashDeleted && dataDeleted) {
             response.setMessage("Draft deleted successfully");
-            response.setDraftId(draftId);
+        } else if (hashDeleted != dataDeleted) {
+            // exactly one succeeded — this is the case the original code
+            // silently swallowed
+            log.warn("Partial draft deletion for draftId={}: listEntryRemoved={}, dataPayloadRemoved={}",
+                    draftId, hashDeleted, dataDeleted);
+            response.setMessage("Draft partially deleted — please contact support if this recurs");
         } else {
             response.setMessage("Draft not found or already deleted");
-            response.setDraftId(draftId);
         }
         return response;
+    }
+
+    @Override
+    public AutosaveDeleteResponse deleteAutosaveDraftList(AutosaveDomain request) {
+
+        String psCd = request.getOfficeCd().toString();
+        String loginId = request.getLoginId();
+        String moduleName = request.getModuleName();
+        String draftId = request.getDraftId();
+
+        // Same schema every other method uses — this delete can never
+        // target a different key than what create/persist/fetch wrote to.
+        RedisKey listKey = autosaveRedisKeySchema.draftListKey(psCd, loginId, moduleName);
+        RedisKey dataKey = autosaveRedisKeySchema.draftDataKey(draftId, psCd);
+
+        validateDraftExists(listKey, draftId);
+
+        Long hashRemoved = redisJsonTemplate.opsForHash().delete(listKey.value(), draftId);
+        Boolean dataRemoved = redisJsonTemplate.delete(dataKey.value());
+
+        return buildDeleteResponse(draftId, hashRemoved, dataRemoved);
     }
 }

@@ -1,7 +1,6 @@
 package com.cctns.autosave.producer.service.configuration;
 
-import java.util.LinkedHashMap;
-
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.data.redis.RedisProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -14,7 +13,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
-import lombok.extern.slf4j.Slf4j;
+import java.util.LinkedHashMap;
 
 /**
  * This class represents the spring data redis configurations

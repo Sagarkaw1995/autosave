@@ -1,14 +1,6 @@
 package com.cctns.autosave.producer.service.configuration;
 
-import java.io.IOException;
-import java.util.LinkedHashMap;
-import java.util.regex.Pattern;
-
-import org.springframework.boot.autoconfigure.jackson.Jackson2ObjectMapperBuilderCustomizer;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.data.redis.core.RedisTemplate;
-
+import com.cctns.autosave.producer.service.constants.AutosaveRedisKeySchema;
 import com.cctns.autosave.producer.service.constants.Constants;
 import com.cctns.autosave.producer.service.core.external.port.MicroserviceComms;
 import com.cctns.autosave.producer.service.core.repository.AutosaveRepository;
@@ -22,6 +14,14 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import org.springframework.boot.autoconfigure.jackson.Jackson2ObjectMapperBuilderCustomizer;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.core.RedisTemplate;
+
+import java.io.IOException;
+import java.util.LinkedHashMap;
+import java.util.regex.Pattern;
 
 @Configuration
 public class DefaultConfig {
@@ -29,8 +29,8 @@ public class DefaultConfig {
     @Bean
     public AutosaveUseCaseImpl autosaveUseCase(RedisTemplate<String, LinkedHashMap<String, Object>> redisJsonTemplate,
                                                RedisTemplate<String, String> redisZSetTemplate, MicroserviceComms microserviceComms, AutosaveRepository autosaveRepository,
-                                               ObjectMapper objectMapper) {
-        return new AutosaveUseCaseImpl(redisJsonTemplate, redisZSetTemplate, microserviceComms, autosaveRepository, objectMapper);
+                                               ObjectMapper objectMapper, AutosaveRedisKeySchema autosaveRedisKeySchema) {
+        return new AutosaveUseCaseImpl(redisJsonTemplate, redisZSetTemplate, microserviceComms, autosaveRepository, objectMapper, autosaveRedisKeySchema);
     }
 
 

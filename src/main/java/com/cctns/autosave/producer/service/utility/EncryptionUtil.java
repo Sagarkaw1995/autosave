@@ -1,22 +1,20 @@
 package com.cctns.autosave.producer.service.utility;
 
-import java.nio.charset.StandardCharsets;
-import java.security.SecureRandom;
-import java.util.Base64;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import com.cctns.autosave.producer.service.constants.Constants;
+import com.cctns.autosave.producer.service.core.exception.EncryptionFailedException;
+import jakarta.annotation.PostConstruct;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
-
-import com.cctns.autosave.producer.service.constants.Constants;
-import com.cctns.autosave.producer.service.core.exception.EncryptionFailedException;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
-
-import jakarta.annotation.PostConstruct;
+import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
+import java.util.Base64;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Component
 public class EncryptionUtil {
@@ -52,7 +50,7 @@ public class EncryptionUtil {
             keyBytes = normalizeKeyBytes(keyBytes);
             secretKey = new SecretKeySpec(keyBytes, Constants.ENCRYPTION);
         } catch (Exception e) {
-            e.printStackTrace();
+            //e.printStackTrace();
             throw new EncryptionFailedException(Constants.SECRET_KEY_INIT_FAILED_EX);
         }
     }

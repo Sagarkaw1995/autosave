@@ -13,12 +13,12 @@ import java.util.List;
 public interface AutosaveUseCase {
 
     /**
-     * Creates a new autosave draft
+     * Creates a new autosave draft for the requested module
      *
      * @param request Autosave domain
-     * @return New created autosave data
+     * @return Created autosave data
      */
-    AutosaveCreateResponse sentinelPersist(AutosaveDomain request);
+    AutosaveCreateResponse createDraft(AutosaveDomain request);
 
     /**
      * Persists the key value pair in redis cache

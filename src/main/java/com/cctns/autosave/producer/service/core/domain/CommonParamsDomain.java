@@ -1,7 +1,5 @@
 package com.cctns.autosave.producer.service.core.domain;
 
-import java.util.List;
-
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;

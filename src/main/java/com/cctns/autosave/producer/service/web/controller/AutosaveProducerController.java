@@ -4,16 +4,18 @@ import com.cctns.autosave.producer.service.constants.Constants;
 import com.cctns.autosave.producer.service.core.domain.AutosaveDomain;
 import com.cctns.autosave.producer.service.core.domain.PageDomain;
 import com.cctns.autosave.producer.service.core.usecase.AutosaveUseCase;
-import com.cctns.autosave.producer.service.web.dto.request.AutosaveCreateRequest;
+import com.cctns.autosave.producer.service.mapper.WebDomainMapper;
 import com.cctns.autosave.producer.service.web.dto.request.AutosaveDraftListRequestDto;
 import com.cctns.autosave.producer.service.web.dto.request.AutosaveGetRequestDto;
 import com.cctns.autosave.producer.service.web.dto.request.AutosaveRequestDto;
+import com.cctns.autosave.producer.service.web.dto.request.ModuleRequest;
 import com.cctns.autosave.producer.service.web.dto.response.ApiResponse;
 import com.cctns.autosave.producer.service.web.dto.response.AutosaveCreateResponse;
 import com.cctns.autosave.producer.service.web.dto.response.AutosaveDeleteResponse;
 import com.cctns.autosave.producer.service.web.dto.response.GetFormDataResponse;
 import com.cctns.autosave.producer.service.web.dto.response.UpdateResponseDto;
 import jakarta.validation.Valid;
+import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -26,32 +28,41 @@ import java.util.LinkedHashMap;
 import java.util.List;
 
 /**
- * Controller for the autosave service
+ * Copyright: NCRB
+ * Project Name: CCTNS 2.0
+ * Class Name: AutosaveProducerController.java
+ * Description: Rest controller for Auto-save
+ * @version v1.0
+ * @since 2025-08-04
  */
+@Slf4j
 @RestController
 @RequestMapping("/common/auto-save/")
 public class AutosaveProducerController {
 
 private final ModelMapper modelMapper;
 private final AutosaveUseCase autosaveUseCase;
+private final WebDomainMapper webDomainMapper;
 
-    public AutosaveProducerController(ModelMapper modelMapper, AutosaveUseCase autosaveUseCase) {
+    public AutosaveProducerController(ModelMapper modelMapper, AutosaveUseCase autosaveUseCase, WebDomainMapper webDomainMapper) {
         this.modelMapper = modelMapper;
         this.autosaveUseCase = autosaveUseCase;
+        this.webDomainMapper = webDomainMapper;
     }
 
     /**
-     * Creates a new draft for autosave
-     * @param request
-     * @return
+     * Creates a new draft for auto-save
+     *
+     * @param request Module request {@link ModuleRequest}
+     * @return Response entity for draft creation data  {@link ResponseEntity<ApiResponse<AutosaveCreateResponse>>}
      */
     @PostMapping("create-draft")
-    public ResponseEntity<?> createAutoSaveDraft(@Valid @RequestBody AutosaveCreateRequest request){
-        AutosaveCreateResponse response = autosaveUseCase.sentinelPersist(modelMapper.map(request, AutosaveDomain.class));
-        ApiResponse<?> apiResponse = ApiResponse.builder()
+    public ResponseEntity<ApiResponse<AutosaveCreateResponse>> createAutoSaveDraft(@Valid @RequestBody ModuleRequest request) {
+        AutosaveCreateResponse response = autosaveUseCase.createDraft(webDomainMapper.mapsModuleRequestToAutosaveDomain(request));
+        ApiResponse<AutosaveCreateResponse> apiResponse = ApiResponse.<AutosaveCreateResponse>builder()
                 .statusCode(HttpStatus.OK.value())
                 .status(HttpStatus.OK.name())
-                .message(Constants.SAVE_DRAFT_SUCCESSFULLY)
+                .message(Constants.DRAFT_CREATED_SUCCESSFULLY)
                 .data(response)
                 .build();
         return ResponseEntity.ok().body(apiResponse);
@@ -59,6 +70,7 @@ private final AutosaveUseCase autosaveUseCase;
 
     /**
      * Persists The JSON In Redis
+     *
      * @param request (Autosave Request)
      * @return ResponseEntity
      */
@@ -76,12 +88,13 @@ private final AutosaveUseCase autosaveUseCase;
 
     /**
      * Fetches Draft Data From Redis
+     *
      * @param request
      * @return
      */
     @PostMapping("get-draft-data")
-    public ResponseEntity<?> getAutoSaveData(@Valid @RequestBody AutosaveGetRequestDto request){
-        GetFormDataResponse response =  autosaveUseCase.fetchAutosaveData(modelMapper.map(request, AutosaveDomain.class));
+    public ResponseEntity<?> getAutoSaveData(@Valid @RequestBody AutosaveGetRequestDto request) {
+        GetFormDataResponse response = autosaveUseCase.fetchAutosaveData(modelMapper.map(request, AutosaveDomain.class));
         ApiResponse<?> apiResponse = ApiResponse.builder()
                 .statusCode(HttpStatus.OK.value())
                 .status(HttpStatus.OK.name())

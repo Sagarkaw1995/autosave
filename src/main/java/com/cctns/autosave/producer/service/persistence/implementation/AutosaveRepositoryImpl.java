@@ -1,8 +1,7 @@
 package com.cctns.autosave.producer.service.persistence.implementation;
 
-import org.springframework.stereotype.Component;
-
 import com.cctns.autosave.producer.service.core.repository.AutosaveRepository;
+import org.springframework.stereotype.Component;
 
 @Component
 public class AutosaveRepositoryImpl implements AutosaveRepository {

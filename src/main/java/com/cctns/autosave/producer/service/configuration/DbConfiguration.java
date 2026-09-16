@@ -1,13 +1,12 @@
 package com.cctns.autosave.producer.service.configuration;
 
-import javax.sql.DataSource;
-
+import com.cctns.autosave.producer.service.utility.EncryptionUtil;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import com.cctns.autosave.producer.service.utility.EncryptionUtil;
+import javax.sql.DataSource;
 
 /**
  * This configuration is used when the application is NOT running in a local environment.

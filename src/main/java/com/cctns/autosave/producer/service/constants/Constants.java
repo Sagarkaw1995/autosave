@@ -12,6 +12,7 @@ public class Constants {
     public static final String TIME_FORMAT = "HH:mm:ss";
     public static final String DATE_FORMAT = "dd/MM/yyyy";
     public static final String DATE_TIME_FORMAT = "dd-MM-yyyy HH:mm";
+    public static final String ZONE_ID = "Asia/Kolkata";
 
     //Validation Response Code :
     public static final String PARSE_MAPPING_ERRORS = "EXF0001";
@@ -37,6 +38,7 @@ public class Constants {
 
     //Success Message :
     public static final String SUCCESS = "SUCCESS";
+    public static final String DRAFT_CREATED_SUCCESSFULLY = "DCS0001";
     public static final String SAVE_DRAFT_SUCCESSFULLY = "SDS0001";
     public static final String FETCH_DRAFT_SUCCESSFULLY = "FDS0001";
     public static final String INVALID_HEADER_MISSING_COMMON_PARAMS_EXCEPTION = "FDS0001";
@@ -87,8 +89,13 @@ public class Constants {
     public static final int AES_KEY_SIZE = 32;
 
     //Module Name Validation :
-    public static final String FINAL_MODULE_NAME_VALIDATION = "FINALR";
+    public static final String FINAL_FORM_MODULE_NAME_VALIDATION = "FINALR";
+    public static final String FIR_MODULE_NAME_VALIDATION = "FIR";
     public static final String BAIL_CANCEL_MODULE = "BAIL/CANCELLATION";
     public static final String ARREST_WARRANT_MODULE = "ARREST_WARRANT";
+    public static final String MLC_MODULE_NAME_VALIDATION = "MLC";
+    public static final String CRIME_MODULE = "CRIME";
+
+    //Script Validation :
     public static final String SCRIPT_REGEX = "<[^>]*>";
 }

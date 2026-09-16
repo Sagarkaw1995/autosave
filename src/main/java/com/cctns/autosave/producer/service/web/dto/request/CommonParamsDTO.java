@@ -1,7 +1,5 @@
 package com.cctns.autosave.producer.service.web.dto.request;
 
-import java.util.List;
-
 import com.cctns.autosave.producer.service.constants.Constants;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -9,6 +7,8 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+
+import java.util.List;
 
 @Getter
 @Setter

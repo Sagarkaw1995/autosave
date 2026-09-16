@@ -1,11 +1,10 @@
 package com.cctns.autosave.producer.service.persistence.implementation;
 
+import com.cctns.autosave.producer.service.persistence.entity.ArrestSavedFormEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.transaction.annotation.Transactional;
-
-import com.cctns.autosave.producer.service.persistence.entity.ArrestSavedFormEntity;
 
 public interface ArrestSavedFormJpaRepo extends JpaRepository<ArrestSavedFormEntity,Long> {
 
