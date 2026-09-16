@@ -2,6 +2,8 @@ package com.cctns.autosave.producer.service.constants;
 
 import com.cctns.autosave.producer.service.utility.ArrestValidation;
 import com.cctns.autosave.producer.service.utility.BailValidation;
+import com.cctns.autosave.producer.service.utility.CrimeValidation;
+import com.cctns.autosave.producer.service.utility.FinalFormValidation;
 import com.cctns.autosave.producer.service.utility.FirValidation;
 import com.cctns.autosave.producer.service.utility.GenericValidation;
 import com.cctns.autosave.producer.service.utility.MlcValidation;
@@ -65,7 +67,13 @@ public enum Module {
     ),
     CRIME(
             Set.of("CRIME"),
-            MlcValidation.class,
+            CrimeValidation.class,
+            EnumSet.of(DRAFT_NUM, DRAFT_SRNO, DRAFT_ID, DRAFT_DATE_TIME, FIR_REG_NUM, REG_DATE),
+            EnumSet.of(LAST_UPDATED)
+    ),
+    FINALR(
+            Set.of("FINALR"),
+            FinalFormValidation.class,
             EnumSet.of(DRAFT_NUM, DRAFT_SRNO, DRAFT_ID, DRAFT_DATE_TIME, FIR_REG_NUM, REG_DATE),
             EnumSet.of(LAST_UPDATED)
     );
