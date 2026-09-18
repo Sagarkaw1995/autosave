@@ -24,6 +24,8 @@ import static com.cctns.autosave.producer.service.constants.AutosaveGridField.DR
 import static com.cctns.autosave.producer.service.constants.AutosaveGridField.DRAFT_SRNO;
 import static com.cctns.autosave.producer.service.constants.AutosaveGridField.FIR_REG_NUM;
 import static com.cctns.autosave.producer.service.constants.AutosaveGridField.LAST_UPDATED;
+import static com.cctns.autosave.producer.service.constants.AutosaveGridField.MAIL_TO;
+import static com.cctns.autosave.producer.service.constants.AutosaveGridField.MESSAGE_SUBJECT;
 import static com.cctns.autosave.producer.service.constants.AutosaveGridField.MLC_SUB_TYPE;
 import static com.cctns.autosave.producer.service.constants.AutosaveGridField.MLC_TYPE;
 import static com.cctns.autosave.producer.service.constants.AutosaveGridField.REG_DATE;
@@ -76,7 +78,12 @@ public enum Module {
             FinalFormValidation.class,
             EnumSet.of(DRAFT_NUM, DRAFT_SRNO, DRAFT_ID, DRAFT_DATE_TIME, FIR_REG_NUM, REG_DATE),
             EnumSet.of(LAST_UPDATED)
-    );
+    ),
+    EXTCOMM(
+            Set.of("EXTCOMM"),
+            FinalFormValidation.class,
+            EnumSet.of(DRAFT_NUM, DRAFT_SRNO, DRAFT_ID, DRAFT_DATE_TIME),
+            EnumSet.of(MAIL_TO,MESSAGE_SUBJECT,LAST_UPDATED));
 
 
     private final Set<String> moduleNames; //Module name of respective module

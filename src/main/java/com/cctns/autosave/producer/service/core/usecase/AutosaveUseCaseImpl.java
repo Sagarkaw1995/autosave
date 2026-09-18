@@ -193,6 +193,8 @@ public class AutosaveUseCaseImpl implements AutosaveUseCase{
                     .set(AutosaveGridField.MLC_TYPE, request.getMlcType())
                     .set(AutosaveGridField.MLC_SUB_TYPE, request.getMlcSubType())
                     .set(AutosaveGridField.ACCUSED_NAME, request.getAccusedName())
+                    .set(AutosaveGridField.MAIL_TO, request.getToEmails())
+                    .set(AutosaveGridField.MESSAGE_SUBJECT, request.getMessageSubject())
                     .set(AutosaveGridField.LAST_UPDATED, LocalDateTime.now().format(FORMATTER))
                     .applyTo(gridMeta);
 

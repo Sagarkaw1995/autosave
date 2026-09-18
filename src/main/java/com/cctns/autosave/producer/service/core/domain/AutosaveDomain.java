@@ -37,6 +37,10 @@ public class AutosaveDomain extends CommonParamsDomain {
     private String mlcType;
     private String mlcSubType;
 
+    //Extcomm Autosave Fields :
+    private String messageSubject;
+    private String toEmails;
+
     //Generic Autosave Request :
     private String complainantDraftName;
     private LocalDateTime regDate;

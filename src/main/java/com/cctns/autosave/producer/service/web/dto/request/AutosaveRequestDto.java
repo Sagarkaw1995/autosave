@@ -29,6 +29,11 @@ public class AutosaveRequestDto extends CommonParamsDTO{
     private String mlcType;
     private String mlcSubType;
 
+    //Extcomm Autosave Fields :
+    private String messageSubject;
+    private String toEmails;
+
+
     //For Arrest Type :
     // private String arrestType;
 }

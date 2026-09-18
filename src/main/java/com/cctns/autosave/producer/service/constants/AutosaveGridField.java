@@ -31,7 +31,11 @@ public enum AutosaveGridField {
     ACCUSED_VID("accusedVid"),
     ACCUSED_NAME("accusedName"),
     ACCUSED_SERIAL_NUMBER("accusedSrno"),
-    ARR_SURR_SR_NO("arrSurrSrNo");
+    ARR_SURR_SR_NO("arrSurrSrNo"),
+
+    //EXTCOMM FIELDS :
+    MESSAGE_SUBJECT("messageSubject"),
+    MAIL_TO("toEmails");
 
     private final String key;
 
